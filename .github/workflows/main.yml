@@ -49,4 +49,4 @@ jobs:
 
       - name: Déploiement
         id: deployment
-        uses: actions/deploy-pages@v6
+        uses: actions/deploy-pages@v5

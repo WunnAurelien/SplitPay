@@ -335,3 +335,7 @@ if (!useMock) {
 }
 
 export { supabase, useMock }
+
+export function useSupabase() {
+  return { supabase, useMock }
+}

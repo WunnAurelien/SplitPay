@@ -3,7 +3,7 @@ import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { state, actions } from '../store'
-import { supabase } from '../supabase'
+import { useSupabase } from '../supabase'
 import BaseButton from './ui/BaseButton.vue'
 import BaseCard from './ui/BaseCard.vue'
 import BaseInput from './ui/BaseInput.vue'
@@ -11,6 +11,7 @@ import ErrorBanner from './ui/ErrorBanner.vue'
 
 const router = useRouter()
 const { t } = useI18n()
+const { supabase } = useSupabase()
 const username = ref('')
 const paymentLink = ref('')
 const phoneNumber = ref('')
@@ -79,235 +80,63 @@ const handleLogout = async () => {
 </script>
 
 <template>
-  <div class="settings-page">
-    <BaseCard class="settings-container">
+  <div class="py-8 flex justify-center">
+    <BaseCard class="w-full max-w-2xl p-6">
       <!-- Header -->
-      <div class="settings-header">
-        <h2>{{ $t('settings.profileSettings') }}</h2>
-        <p class="subtitle">{{ $t('settings.profileSettingsSubtitle') }}</p>
+      <div class="mb-4">
+        <h2 class="text-2xl font-semibold">{{ $t('settings.profileSettings') }}</h2>
+        <p class="text-sm text-base-content/70">{{ $t('settings.profileSettingsSubtitle') }}</p>
       </div>
 
       <!-- Account Approval Status -->
-      <div class="status-box">
-        <label>{{ $t('settings.accountStatus') }}</label>
-        <div class="status-details">
-          <span 
-            v-if="state.profile?.status === 'approved'" 
-            class="badge badge-approved"
-          >
-            {{ $t('settings.approved') }}
-          </span>
-          <span 
-            v-else-if="state.profile?.status === 'pending'" 
-            class="badge badge-pending"
-          >
-            {{ $t('settings.pending') }}
-          </span>
-          <span 
-            v-else-if="state.profile?.status === 'rejected'" 
-            class="badge badge-rejected"
-          >
-            {{ $t('settings.rejected') }}
-          </span>
-          <span 
-            v-else 
-            class="badge badge-pending"
-          >
-            {{ $t('common.loading') }}
-          </span>
-
-          <p v-if="state.profile?.status === 'approved'" class="status-msg success">
-            {{ $t('settings.approvedMsg') }}
-          </p>
-          <p v-else-if="state.profile?.status === 'pending'" class="status-msg warning">
-            {{ $t('settings.pendingMsg') }}
-          </p>
-          <p v-else-if="state.profile?.status === 'rejected'" class="status-msg danger">
-            {{ $t('settings.rejectedMsg') }}
-          </p>
-          <p v-else class="status-msg warning">
-            {{ $t('settings.loadingStatus') }}
-          </p>
+      <div class="p-4 border rounded-lg mb-6">
+        <label class="block text-sm font-semibold">{{ $t('settings.accountStatus') }}</label>
+        <div class="mt-3 flex flex-col gap-2">
+          <div>
+            <span v-if="state.profile?.status === 'approved'" class="badge badge-success">{{ $t('settings.approved') }}</span>
+            <span v-else-if="state.profile?.status === 'pending'" class="badge badge-warning">{{ $t('settings.pending') }}</span>
+            <span v-else-if="state.profile?.status === 'rejected'" class="badge badge-error">{{ $t('settings.rejected') }}</span>
+            <span v-else class="badge badge-secondary">{{ $t('common.loading') }}</span>
+          </div>
+          <div class="text-sm mt-2 text-base-content/70">
+            <p v-if="state.profile?.status === 'approved'">{{ $t('settings.approvedMsg') }}</p>
+            <p v-else-if="state.profile?.status === 'pending'">{{ $t('settings.pendingMsg') }}</p>
+            <p v-else-if="state.profile?.status === 'rejected'">{{ $t('settings.rejectedMsg') }}</p>
+            <p v-else>{{ $t('settings.loadingStatus') }}</p>
+          </div>
         </div>
       </div>
 
       <!-- Profile Edit Form -->
-      <form @submit.prevent="handleUpdate" class="settings-form">
+      <form @submit.prevent="handleUpdate" class="space-y-4">
         <ErrorBanner v-if="errorMsg" :error="errorMsg" />
-        <div v-if="successMsg" class="success-banner">
-          {{ successMsg }}
-        </div>
+        <div v-if="successMsg" class="p-3 rounded bg-success/10 text-success">{{ successMsg }}</div>
 
-        <BaseInput
-          type="email"
-          id="email"
-          :modelValue="state.session?.user?.email"
-          disabled
-          class="disabled-input"
-          :label="$t('settings.emailLabel')"
-        />
-        <span class="field-hint" style="margin-top: -14px; margin-bottom: 20px;">{{ $t('settings.emailHint') }}</span>
+        <BaseInput type="email" id="email" :modelValue="state.session?.user?.email" disabled class="disabled-input" :label="$t('settings.emailLabel')" />
+        <div class="text-xs text-base-content/60">{{ $t('settings.emailHint') }}</div>
 
-        <BaseInput
-          type="text"
-          id="username"
-          v-model="username"
-          required
-          :label="$t('settings.displayNameLabel')"
-          :placeholder="t('settings.displayNamePlaceholder')"
-        />
+        <BaseInput type="text" id="username" v-model="username" required :label="$t('settings.displayNameLabel')" :placeholder="t('settings.displayNamePlaceholder')" />
 
-        <BaseInput
-          type="url"
-          id="payment-link"
-          v-model="paymentLink"
-          :label="$t('settings.paymentLinkLabel')"
-          :placeholder="t('settings.paymentLinkPlaceholder')"
-        />
-        <span class="field-hint" style="margin-top: -14px; margin-bottom: 20px;">{{ $t('settings.paymentLinkHintSettings') }}</span>
+        <BaseInput type="url" id="payment-link" v-model="paymentLink" :label="$t('settings.paymentLinkLabel')" :placeholder="t('settings.paymentLinkPlaceholder')" />
+        <div class="text-xs text-base-content/60">{{ $t('settings.paymentLinkHintSettings') }}</div>
 
-        <BaseInput
-          type="text"
-          id="phone-number"
-          v-model="phoneNumber"
-          :label="$t('settings.phoneNumberLabel')"
-          :placeholder="t('settings.phoneNumberPlaceholder')"
-        />
-        <span class="field-hint" style="margin-top: -14px; margin-bottom: 20px;">{{ $t('settings.phoneNumberHint') }}</span>
+        <BaseInput type="text" id="phone-number" v-model="phoneNumber" :label="$t('settings.phoneNumberLabel')" :placeholder="t('settings.phoneNumberPlaceholder')" />
+        <div class="text-xs text-base-content/60">{{ $t('settings.phoneNumberHint') }}</div>
 
-        <BaseInput
-          type="text"
-          id="iban"
-          v-model="iban"
-          :label="$t('settings.ibanLabel')"
-          :placeholder="t('settings.ibanPlaceholder')"
-        />
-        <span class="field-hint" style="margin-top: -14px; margin-bottom: 20px;">{{ $t('settings.ibanHint') }}</span>
+        <BaseInput type="text" id="iban" v-model="iban" :label="$t('settings.ibanLabel')" :placeholder="t('settings.ibanPlaceholder')" />
+        <div class="text-xs text-base-content/60">{{ $t('settings.ibanHint') }}</div>
 
-        <div class="form-actions">
-          <BaseButton type="submit" variant="primary" :loading="isSaving">
-            {{ $t('settings.saveChanges') }}
-          </BaseButton>
-          
-          <BaseButton 
-            v-if="state.isAdmin" 
-            to="/admin" 
-            variant="secondary"
-            style="border-color: rgba(139, 92, 246, 0.3); color: var(--accent-purple);"
-          >
-            {{ $t('settings.adminPanel') }}
-          </BaseButton>
-
-          <BaseButton type="button" @click="handleLogout" variant="secondary" style="border-color: rgba(239, 68, 68, 0.3); color: var(--color-danger);">
-            {{ $t('settings.signOut') }}
-          </BaseButton>
+        <div class="flex flex-wrap gap-3 mt-4">
+          <BaseButton type="submit" variant="primary" :loading="isSaving">{{ $t('settings.saveChanges') }}</BaseButton>
+          <BaseButton v-if="state.isAdmin" to="/admin" variant="secondary" class="text-purple-400">{{ $t('settings.adminPanel') }}</BaseButton>
+          <BaseButton type="button" @click="handleLogout" variant="secondary" class="text-error">{{ $t('settings.signOut') }}</BaseButton>
         </div>
       </form>
     </BaseCard>
   </div>
+
 </template>
 
-
 <style scoped>
-.settings-page {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20px 0;
-}
-
-.settings-container {
-  width: 100%;
-  max-width: 580px;
-}
-
-.settings-header {
-  margin-bottom: 25px;
-}
-
-.subtitle {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  margin-top: 4px;
-}
-
-.status-box {
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 25px;
-}
-
-.status-details {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  margin-top: 6px;
-}
-
-.status-msg {
-  font-size: 0.85rem;
-  line-height: 1.4;
-  margin-top: 4px;
-}
-
-.status-msg.warning {
-  color: var(--color-warning);
-}
-
-.status-msg.danger {
-  color: var(--color-danger);
-}
-
-.status-msg.success {
-  color: var(--text-muted);
-}
-
-.disabled-input {
-  background: rgba(255, 255, 255, 0.01) !important;
-  color: var(--text-muted) !important;
-  border-color: rgba(255, 255, 255, 0.03) !important;
-  cursor: not-allowed;
-}
-
-.form-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 30px;
-}
-
-@media (max-width: 480px) {
-  .form-actions {
-    flex-direction: column;
-  }
-}
-
-.field-hint {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--text-dark);
-  margin-top: 6px;
-}
-
-.error-banner {
-  background-color: var(--color-danger-bg);
-  color: var(--color-danger);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 12px;
-  padding: 12px;
-  font-size: 0.9rem;
-  margin-bottom: 20px;
-}
-
-.success-banner {
-  background-color: var(--color-success-bg);
-  color: var(--color-success);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  border-radius: 12px;
-  padding: 12px;
-  font-size: 0.9rem;
-  margin-bottom: 20px;
-}
+/* minimal or no scoped CSS - relying on Tailwind and component styles */
 </style>

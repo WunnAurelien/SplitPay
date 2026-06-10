@@ -1,5 +1,10 @@
 <template>
-  <component :is="to ? 'router-link' : 'div'" :to="to" class="glass-panel" :class="{ 'interactive': interactive }">
+  <component
+    :is="to ? 'router-link' : 'div'"
+    :to="to"
+    class="rounded-2xl border border-base-300/40 bg-base-200/20 p-6"
+    :class="interactive ? 'hover:border-primary shadow-lg' : ''"
+  >
     <slot></slot>
   </component>
 </template>

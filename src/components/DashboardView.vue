@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { state, userGlobalStats, calculateSettlements, getTableExpenses, actions } from '../store'
-import { supabase } from '../supabase'
+import { useSupabase } from '../supabase'
 import BaseButton from './ui/BaseButton.vue'
 import BaseModal from './ui/BaseModal.vue'
 import BaseCard from './ui/BaseCard.vue'
@@ -10,6 +10,7 @@ import BaseInput from './ui/BaseInput.vue'
 import ErrorBanner from './ui/ErrorBanner.vue'
 
 const { t, locale } = useI18n()
+const { supabase } = useSupabase()
 const newGroupName = ref('')
 const errorMsg = ref('')
 const isLoading = ref(false)
@@ -97,58 +98,55 @@ const handleBackdropClick = (event) => {
 </script>
 
 <template>
-  <div class="dashboard">
+  <div class="space-y-6">
     <!-- Header Greeting -->
-    <div class="dashboard-header">
+    <div class="flex items-center justify-between">
       <div>
-        <h1>{{ $t('dashboard.welcome', { name: state.profile?.username }) }}</h1>
-        <p class="subtitle">{{ $t('dashboard.subtitle') }}</p>
+        <h1 class="text-2xl font-semibold">{{ $t('dashboard.welcome', { name: state.profile?.username }) }}</h1>
+        <p class="text-sm text-base-content/70">{{ $t('dashboard.subtitle') }}</p>
       </div>
       <BaseButton @click="openCreateModal" variant="primary">
-        <span class="plus-icon">+</span> {{ $t('dashboard.createGroupBtn') }}
+        <span class="mr-2">+</span> {{ $t('dashboard.createGroupBtn') }}
       </BaseButton>
     </div>
 
     <!-- Stats Summary Grid -->
-    <div class="stat-grid">
-      <BaseCard class="stat-card">
-        <span class="stat-label">{{ $t('dashboard.owedToMe') }}</span>
-        <span class="stat-value positive">{{ formatEuro(userGlobalStats.netOwedToMe) }}</span>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <BaseCard class="p-4">
+        <div class="text-sm text-base-content/70">{{ $t('dashboard.owedToMe') }}</div>
+        <div class="text-2xl font-bold text-success">{{ formatEuro(userGlobalStats.netOwedToMe) }}</div>
       </BaseCard>
-      <BaseCard class="stat-card">
-        <span class="stat-label">{{ $t('dashboard.iOwe') }}</span>
-        <span class="stat-value negative">{{ formatEuro(userGlobalStats.netIOwe) }}</span>
+      <BaseCard class="p-4">
+        <div class="text-sm text-base-content/70">{{ $t('dashboard.iOwe') }}</div>
+        <div class="text-2xl font-bold text-error">{{ formatEuro(userGlobalStats.netIOwe) }}</div>
       </BaseCard>
-      <BaseCard class="stat-card">
-        <span class="stat-label">{{ $t('dashboard.activeGroups') }}</span>
-        <span class="stat-value">{{ userGlobalStats.activeGroupsCount }}</span>
+      <BaseCard class="p-4">
+        <div class="text-sm text-base-content/70">{{ $t('dashboard.activeGroups') }}</div>
+        <div class="text-2xl font-bold">{{ userGlobalStats.activeGroupsCount }}</div>
       </BaseCard>
     </div>
 
     <!-- Groups Grid -->
-    <h2 class="section-title">{{ $t('dashboard.yourGroups') }}</h2>
+    <h2 class="text-xl font-semibold">{{ $t('dashboard.yourGroups') }}</h2>
 
-    <BaseCard v-if="state.groups.length === 0" class="empty-state">
-      <div class="empty-state-icon">💸</div>
-      <h3>{{ $t('dashboard.noGroupsTitle') }}</h3>
-      <p>{{ $t('dashboard.noGroupsDesc') }}</p>
-      <BaseButton @click="openCreateModal" variant="secondary" style="margin-top: 15px;">
+    <BaseCard v-if="state.groups.length === 0" class="p-6 text-center">
+      <div class="text-4xl mb-4">💸</div>
+      <h3 class="text-lg font-semibold">{{ $t('dashboard.noGroupsTitle') }}</h3>
+      <p class="text-sm text-base-content/70">{{ $t('dashboard.noGroupsDesc') }}</p>
+      <BaseButton @click="openCreateModal" variant="secondary" class="mt-4">
         {{ $t('dashboard.createFirstGroup') }}
       </BaseButton>
     </BaseCard>
 
-    <div v-else class="groups-grid">
-      <BaseCard v-for="group in state.groups" :key="group.id" :to="`/group/${group.id}`"
-        class="group-card" interactive>
-        <div class="group-info">
-          <h3>{{ group.name }}</h3>
-          <p class="member-count">
-            {{ $t('dashboard.memberCount', group.group_members?.length || 0, {
-              count: group.group_members?.length || 0
-            }) }}
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <BaseCard v-for="group in state.groups" :key="group.id" :to="`/group/${group.id}`" interactive class="p-4 flex justify-between items-center">
+        <div>
+          <h3 class="text-lg font-semibold">{{ group.name }}</h3>
+          <p class="text-sm text-base-content/70">
+            {{ $t('dashboard.memberCount', group.group_members?.length || 0, { count: group.group_members?.length || 0 }) }}
           </p>
         </div>
-        <div class="group-balance" :class="getGroupBalanceText(group).class">
+        <div :class="getGroupBalanceText(group).class === 'owed' ? 'text-success font-semibold' : getGroupBalanceText(group).class === 'owe' ? 'text-error font-semibold' : 'text-base-content/70 font-semibold'">
           {{ getGroupBalanceText(group).text }}
         </div>
       </BaseCard>
@@ -184,80 +182,6 @@ const handleBackdropClick = (event) => {
   </div>
 </template>
 
-
 <style scoped>
-.dashboard-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 30px;
-}
-
-.subtitle {
-  color: var(--text-muted);
-  font-size: 0.95rem;
-  margin-top: 4px;
-}
-
-.plus-icon {
-  font-size: 1.2rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.section-title {
-  margin-bottom: 20px;
-  font-size: 1.4rem;
-}
-
-.groups-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-}
-
-.group-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  text-decoration: none;
-  color: inherit;
-}
-
-.group-info h3 {
-  font-size: 1.15rem;
-  margin-bottom: 4px;
-}
-
-.member-count {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
-.group-balance {
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.group-balance.owed {
-  color: var(--color-success);
-}
-
-.group-balance.owe {
-  color: var(--color-danger);
-}
-
-.group-balance.settled {
-  color: var(--text-muted);
-}
-
-.error-banner {
-  background-color: var(--color-danger-bg);
-  color: var(--color-danger);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 12px;
-  padding: 12px;
-  font-size: 0.9rem;
-  margin-bottom: 20px;
-}
+/* minimal scoped styles (kept empty) */
 </style>

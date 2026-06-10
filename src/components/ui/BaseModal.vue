@@ -1,36 +1,34 @@
 <template>
-  <dialog 
-    ref="dialogRef" 
-    closedby="any" 
-    @click="handleBackdropClick"
-    :aria-labelledby="titleId"
-  >
-    <div class="dialog-content">
-      <div class="dialog-header">
-        <h2 :id="titleId">
-          <slot name="title">{{ title }}</slot>
-        </h2>
-        <button v-if="showClose" @click="close" class="dialog-close" type="button">&times;</button>
-      </div>
-      <slot></slot>
-      <div v-if="$slots.actions" class="dialog-actions" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
-        <slot name="actions"></slot>
-      </div>
+  <Dialog v-model:open="isOpen" class="relative z-50">
+    <div class="fixed inset-0 bg-black/50" aria-hidden="true" />
+
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+      <DialogPanel class="w-full max-w-lg rounded-2xl bg-base-200 p-6">
+        <div class="flex items-start justify-between">
+          <DialogTitle as="h2" class="text-lg font-semibold"> <slot name="title">{{ title }}</slot> </DialogTitle>
+          <button v-if="showClose" @click="close" class="btn btn-ghost btn-sm">✕</button>
+        </div>
+
+        <div class="mt-4">
+          <slot></slot>
+        </div>
+
+        <div v-if="$slots.actions" class="mt-6 flex justify-end items-center gap-3">
+          <slot name="actions"></slot>
+        </div>
+      </DialogPanel>
     </div>
-  </dialog>
+  </Dialog>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 
 const props = defineProps({
   title: {
     type: String,
     default: ''
-  },
-  titleId: {
-    type: String,
-    default: 'dialog-title'
   },
   showClose: {
     type: Boolean,
@@ -40,36 +38,10 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
-const dialogRef = ref(null)
+const isOpen = ref(false)
 
-const showModal = () => {
-  dialogRef.value?.showModal()
-}
+const showModal = () => { isOpen.value = true }
+const close = () => { isOpen.value = false; emit('close') }
 
-const close = () => {
-  dialogRef.value?.close()
-  emit('close')
-}
-
-// Dialog backdrop click close
-const handleBackdropClick = (event) => {
-  if (!dialogRef.value || 'closedBy' in HTMLDialogElement.prototype) return
-  if (event.target !== dialogRef.value) return
-  
-  const rect = dialogRef.value.getBoundingClientRect()
-  const isInDialog = (
-    rect.top <= event.clientY &&
-    event.clientY <= rect.top + rect.height &&
-    rect.left <= event.clientX &&
-    event.clientX <= rect.left + rect.width
-  )
-  if (!isInDialog) {
-    close()
-  }
-}
-
-defineExpose({
-  showModal,
-  close
-})
+defineExpose({ showModal, close })
 </script>

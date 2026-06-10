@@ -1,12 +1,13 @@
 <template>
-  <div class="form-group">
-    <label v-if="label" :for="id">{{ label }}</label>
-    <input 
+  <div class="mb-4 w-full">
+    <label v-if="label" :for="id" class="block text-sm font-semibold mb-2 text-base-content/70">{{ label }}</label>
+    <input
       v-if="type !== 'select' && type !== 'textarea'"
-      :type="type" 
-      :id="id" 
+      :type="type"
+      :id="id"
       :value="modelValue"
       @input="$emit('update:modelValue', $event.target.value)"
+      class="input input-bordered w-full"
       v-bind="$attrs"
     />
     <textarea
@@ -14,13 +15,15 @@
       :id="id"
       :value="modelValue"
       @input="$emit('update:modelValue', $event.target.value)"
+      class="textarea textarea-bordered w-full"
       v-bind="$attrs"
     ></textarea>
-    <select 
+    <select
       v-else
       :id="id"
       :value="modelValue"
       @change="$emit('update:modelValue', $event.target.value)"
+      class="select select-bordered w-full"
       v-bind="$attrs"
     >
       <slot></slot>

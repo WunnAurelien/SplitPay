@@ -409,15 +409,15 @@ const handleBackdropClick = (dialog, event) => {
 </script>
 
 <template>
-  <div class="group-details" v-if="state.activeGroup">
+  <div v-if="state.activeGroup" class="space-y-6">
     <!-- Header -->
-    <div class="group-header">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
-        <router-link to="/" class="back-link">&larr; {{ $t('common.backToDashboard') }}</router-link>
-        <h1>{{ state.activeGroup.name }}</h1>
+        <router-link to="/" class="text-sm font-semibold text-base-content/70">&larr; {{ $t('common.backToDashboard') }}</router-link>
+        <h1 class="text-2xl font-semibold mt-2">{{ state.activeGroup.name }}</h1>
       </div>
-      <div class="action-buttons">
-        <BaseButton @click="copyInviteLink" variant="secondary" size="sm" :class="['invite-btn', { 'invite-success-btn': inviteCopied }]">
+      <div class="flex items-center gap-3 w-full sm:w-auto">
+        <BaseButton @click="copyInviteLink" variant="secondary" size="sm" :class="inviteCopied ? 'bg-success/10 border-success/20 shadow' : ''">
           {{ inviteCopied ? $t('group.inviteCopied') : $t('group.inviteBtn') }}
         </BaseButton>
         <BaseButton @click="openExpenseModal" variant="primary" size="sm">
@@ -430,9 +430,9 @@ const handleBackdropClick = (dialog, event) => {
     <ErrorBanner v-if="state.error" :error="state.error" style="margin-bottom: 20px;" />
 
     <!-- Main Grid -->
-    <div class="group-grid">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Left Column: Expenses & Settlements -->
-      <div class="left-column">
+      <div class="lg:col-span-2 flex flex-col gap-6">
         <!-- Settlements Card -->
         <BaseCard class="settlements-section">
           <h3>{{ $t('group.settlementGuideTitle') }}</h3>
@@ -582,8 +582,8 @@ const handleBackdropClick = (dialog, event) => {
       </div>
 
       <!-- Right Column: Members Sidebar -->
-      <div class="right-column">
-        <BaseCard class="members-card">
+      <div>
+        <BaseCard class="p-4">
           <h3>{{ $t('group.membersTitle') }} ({{ state.activeGroup.members?.length || 0 }})</h3>
           
           <div class="members-list">

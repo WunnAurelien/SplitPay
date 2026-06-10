@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useSupabase } from '../supabase'
 import { actions } from '../store'
@@ -10,9 +10,11 @@ import BaseInput from './ui/BaseInput.vue'
 import ErrorBanner from './ui/ErrorBanner.vue'
 
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
 const { supabase } = useSupabase()
 const isLogin = ref(true)
+const showReset = ref(false)
 const email = ref('')
 const password = ref('')
 const username = ref('')
@@ -25,6 +27,25 @@ const handleAuth = async () => {
   errorMsg.value = ''
   successMsg.value = ''
   
+  if (showReset.value) {
+    // Mode réinitialisation de mot de passe
+    isLoading.value = true
+    try {
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email.value, {
+        redirectTo: window.location.origin + '/#/auth/update-password'
+      })
+      if (error) throw error
+      successMsg.value = t('auth.resetPasswordSuccess')
+      email.value = ''
+    } catch (err) {
+      console.error('Reset password error:', err)
+      errorMsg.value = err.message || t('auth.authErrorFallback')
+    } finally {
+      isLoading.value = false
+    }
+    return
+  }
+
   if (!isLogin.value) {
     const pLink = paymentLink.value.trim()
     if (pLink && !pLink.includes('paypal.me') && !pLink.includes('paypal.com')) {
@@ -43,9 +64,10 @@ const handleAuth = async () => {
       })
       if (error) throw error
       
-      // Successfully logged in
+      // Successfully logged in — redirect to original destination if one was saved
       await actions.initialize()
-      router.push('/')
+      const redirect = route.query.redirect
+      router.push(redirect || '/')
     } else {
       const { data, error } = await supabase.auth.signUp({
         email: email.value,
@@ -84,6 +106,13 @@ const handleAuth = async () => {
 
 const toggleMode = () => {
   isLogin.value = !isLogin.value
+  showReset.value = false
+  errorMsg.value = ''
+  successMsg.value = ''
+}
+
+const toggleReset = () => {
+  showReset.value = !showReset.value
   errorMsg.value = ''
   successMsg.value = ''
 }
@@ -104,15 +133,30 @@ const goToLoginAfterSignUp = () => {
         <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-secondary text-xl font-bold text-white">
           S
         </div>
-        <h2 class="text-3xl font-semibold tracking-tight text-base-content">
-          {{ isLogin ? $t('auth.signInTitle') : $t('auth.signUpTitle') }}
-        </h2>
-        <p class="mt-3 text-sm leading-6 text-base-content/70">
-          {{ isLogin ? $t('auth.signInSubtitle') : $t('auth.signUpSubtitle') }}
-        </p>
+
+        <!-- Titre: Reset password -->
+        <template v-if="showReset">
+          <h2 class="text-3xl font-semibold tracking-tight text-base-content">
+            {{ $t('auth.resetPasswordTitle') }}
+          </h2>
+          <p class="mt-3 text-sm leading-6 text-base-content/70">
+            {{ $t('auth.resetPasswordSubtitle') }}
+          </p>
+        </template>
+
+        <!-- Titre: Login / Signup standard -->
+        <template v-else>
+          <h2 class="text-3xl font-semibold tracking-tight text-base-content">
+            {{ isLogin ? $t('auth.signInTitle') : $t('auth.signUpTitle') }}
+          </h2>
+          <p class="mt-3 text-sm leading-6 text-base-content/70">
+            {{ isLogin ? $t('auth.signInSubtitle') : $t('auth.signUpSubtitle') }}
+          </p>
+        </template>
       </div>
 
-      <div v-if="successMsg" class="space-y-5">
+      <!-- Message de succès (email envoyé, inscription confirmée) -->
+      <div v-if="successMsg && !showReset" class="space-y-5">
         <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-success/15 text-success text-2xl">
           ✉️
         </div>
@@ -122,10 +166,23 @@ const goToLoginAfterSignUp = () => {
         </BaseButton>
       </div>
 
-      <template v-else>
+      <!-- Message de succès pour le reset password uniquement -->
+      <div v-if="successMsg && showReset" class="space-y-5">
+        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-success/15 text-success text-2xl">
+          ✉️
+        </div>
+        <h3 class="text-center text-lg font-semibold text-base-content">{{ successMsg }}</h3>
+        <BaseButton class="w-full" type="button" variant="primary" @click="toggleReset">
+          {{ $t('auth.backToSignIn') }}
+        </BaseButton>
+      </div>
+
+      <!-- Formulaire -->
+      <template v-else-if="!successMsg">
         <form @submit.prevent="handleAuth" class="space-y-4">
           <ErrorBanner v-if="errorMsg" :error="errorMsg" />
 
+          <!-- Email (toujours requis) -->
           <BaseInput
             type="email"
             id="email"
@@ -135,7 +192,9 @@ const goToLoginAfterSignUp = () => {
             :placeholder="t('auth.emailPlaceholder')"
           />
 
+          <!-- Password (caché en mode reset) -->
           <BaseInput
+            v-if="!showReset"
             type="password"
             id="password"
             v-model="password"
@@ -144,7 +203,8 @@ const goToLoginAfterSignUp = () => {
             placeholder="••••••••"
           />
 
-          <template v-if="!isLogin">
+          <!-- Champs d'inscription -->
+          <template v-if="!isLogin && !showReset">
             <BaseInput
               type="text"
               id="username"
@@ -164,13 +224,31 @@ const goToLoginAfterSignUp = () => {
             <p class="mt-1 text-sm text-base-content/60">{{ $t('auth.paymentLinkHint') }}</p>
           </template>
 
+          <!-- Bouton submit -->
           <BaseButton class="w-full" type="submit" variant="primary" :loading="isLoading">
-            <span>{{ isLogin ? $t('auth.signInBtn') : $t('auth.signUpBtn') }}</span>
+            <span v-if="showReset">{{ $t('auth.resetPasswordBtn') }}</span>
+            <span v-else>{{ isLogin ? $t('auth.signInBtn') : $t('auth.signUpBtn') }}</span>
           </BaseButton>
         </form>
 
-        <div class="mt-6 text-center text-sm text-base-content/70">
-          <p>
+        <!-- Liens de navigation -->
+        <div class="mt-6 space-y-3 text-center text-sm text-base-content/70">
+          <!-- Mot de passe oublié (visible uniquement en mode login) -->
+          <p v-if="isLogin && !showReset">
+            <button type="button" class="text-primary hover:underline" @click="toggleReset">
+              {{ $t('auth.forgotPassword') }}
+            </button>
+          </p>
+
+          <!-- Retour à la connexion (visible en mode reset) -->
+          <p v-if="showReset">
+            <button type="button" class="text-primary hover:underline" @click="toggleReset">
+              {{ $t('auth.backToSignIn') }}
+            </button>
+          </p>
+
+          <!-- Bascule Login / Signup (caché en mode reset) -->
+          <p v-if="!showReset">
             {{ isLogin ? $t('auth.noAccount') : $t('auth.hasAccount') }}
             <button type="button" class="btn btn-ghost btn-sm normal-case text-primary hover:underline" @click="toggleMode">
               {{ isLogin ? $t('auth.signUpBtn') : $t('auth.signInBtn') }}

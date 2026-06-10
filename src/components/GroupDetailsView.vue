@@ -46,7 +46,8 @@ const isMemberLoading = ref(false)
 const inviteCopied = ref(false)
 const copyInviteLink = async () => {
   try {
-    const url = `${window.location.origin}/group/${groupId}/join`
+    const basePath = window.location.pathname.replace(/\/?$/, '/')
+    const url = `${window.location.origin}${basePath}#/group/${groupId}/join`
     await navigator.clipboard.writeText(url)
     inviteCopied.value = true
     setTimeout(() => {
@@ -558,8 +559,10 @@ const handleBackdropClick = (dialog, event) => {
               <div class="expense-meta">
                 <div class="expense-title">
                   <h4 :class="{ 'text-strikethrough': expense.deleted_at }">{{ expense.description }}</h4>
-                  <span v-if="expense.deleted_at" class="deleted-badge">{{ $t('group.deleted') }}</span>
-                  <span class="expense-payer">{{ $t('group.paidBy', { name: getPayerName(expense.paid_by) }) }}</span>
+                  <div class="expense-title-meta">
+                    <span v-if="expense.deleted_at" class="deleted-badge">{{ $t('group.deleted') }}</span>
+                    <span class="expense-payer">{{ $t('group.paidBy', { name: getPayerName(expense.paid_by) }) }}</span>
+                  </div>
                 </div>
                 <div class="expense-split">
                   {{ getExpenseSplitSummary(expense) }}
@@ -1130,9 +1133,23 @@ const handleBackdropClick = (dialog, event) => {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
+.expense-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .expense-title h4 {
   font-size: 1.05rem;
-  margin-bottom: 2px;
+  margin: 0;
+}
+
+.expense-title-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .expense-payer {
@@ -1193,11 +1210,12 @@ const handleBackdropClick = (dialog, event) => {
   font-size: 0.65rem;
   background: var(--color-danger);
   color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-left: 8px;
-  vertical-align: middle;
-  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Members Card */

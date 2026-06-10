@@ -198,7 +198,7 @@ const stopImpersonating = async () => {
       <p>{{ state.confirmState.message }}</p>
       <template #actions>
         <BaseButton @click="state.confirmState.reject?.()" variant="secondary" size="sm">{{ state.confirmState.cancelText }}</BaseButton>
-        <BaseButton @click="state.confirmState.resolve?.()" variant="danger" size="sm">{{ state.confirmState.confirmText }}</BaseButton>
+        <BaseButton @click="state.confirmState.resolve?.()" variant="primary" size="sm">{{ state.confirmState.confirmText }}</BaseButton>
       </template>
     </BaseModal>
 

@@ -311,6 +311,87 @@ if (!useMock) {
         return { data: { user: currentSession?.user || null }, error: null };
       },
 
+      async updateUser(updateData) {
+        if (!currentSession) {
+          return { data: null, error: { message: 'Not authenticated.' } };
+        }
+
+        if (updateData.password) {
+          // Mettre à jour le mot de passe dans la table users
+          const users = getTable('users');
+          const updatedUsers = users.map(u => {
+            if (u.id === currentSession.user.id) {
+              return { ...u, password: updateData.password };
+            }
+            return u;
+          });
+          saveTable('users', updatedUsers);
+        }
+
+        return { data: { user: currentSession.user }, error: null };
+      },
+
+      async resetPasswordForEmail(email, options = {}) {
+        const users = getTable('users');
+        const user = users.find(u => u.email === email);
+        if (!user) {
+          // Simuler Supabase qui ne révèle pas si l'email existe ou non
+          return { data: null, error: null };
+        }
+
+        // En mode mock, on stocke un token de recovery dans le user
+        const recoveryToken = crypto.randomUUID();
+        const updatedUsers = users.map(u => {
+          if (u.email === email) {
+            return { ...u, recovery_token: recoveryToken, recovery_expires: Date.now() + 3600000 };
+          }
+          return u;
+        });
+        saveTable('users', updatedUsers);
+
+        // Simuler l'envoi de l'email : stocker le lien dans localStorage
+        const recoveryLinks = JSON.parse(localStorage.getItem('splitpay_recovery_links') || '[]');
+        recoveryLinks.push({
+          email,
+          token: recoveryToken,
+          redirectTo: options.redirectTo || '',
+          created: new Date().toISOString()
+        });
+        localStorage.setItem('splitpay_recovery_links', JSON.stringify(recoveryLinks));
+
+        return { data: null, error: null };
+      },
+
+      async verifyOtp({ type, token_hash }) {
+        if (type !== 'recovery') {
+          return { data: null, error: { message: 'Invalid OTP type.' } };
+        }
+
+        const users = getTable('users');
+        const user = users.find(u => u.recovery_token === token_hash);
+
+        if (!user || user.recovery_expires < Date.now()) {
+          return { data: null, error: { message: 'Invalid or expired recovery token.' } };
+        }
+
+        // Créer une session temporaire pour permettre le changement de mot de passe
+        const profiles = getTable('profiles');
+        const profile = profiles.find(p => p.id === user.id);
+
+        const session = {
+          access_token: 'mock-token-recovery',
+          user: { id: user.id, email: user.email },
+          profile,
+          is_recovery: true
+        };
+
+        currentSession = session;
+        localStorage.setItem('splitpay_session', JSON.stringify(session));
+        authCallbacks.forEach(cb => cb('PASSWORD_RECOVERY', session));
+
+        return { data: { session }, error: null };
+      },
+
       onAuthStateChange(callback) {
         authCallbacks.push(callback);
         // Call immediately with current state

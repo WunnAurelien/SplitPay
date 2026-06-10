@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import { state, actions } from './store'
 
 import AuthView from './components/AuthView.vue'
+import UpdatePasswordView from './components/UpdatePasswordView.vue'
 import DashboardView from './components/DashboardView.vue'
 import GroupDetailsView from './components/GroupDetailsView.vue'
 import JoinGroupView from './components/JoinGroupView.vue'
@@ -13,6 +14,11 @@ const routes = [
     path: '/auth',
     name: 'auth',
     component: AuthView
+  },
+  {
+    path: '/auth/update-password',
+    name: 'update-password',
+    component: UpdatePasswordView
   },
   {
     path: '/',
@@ -65,9 +71,9 @@ router.beforeEach(async (to, from) => {
   const isUserApproved = state.profile?.status === 'approved'
   const isUserAdmin = state.isAdmin
 
-  // 1. Unauthenticated route guard
+  // 1. Unauthenticated route guard — preserve intended destination so user can return after login
   if (to.meta.requiresAuth && !isLoggedIn) {
-    return { name: 'auth' }
+    return { name: 'auth', query: { redirect: to.fullPath } }
   }
 
   // 2. Redirect logged-in users away from Auth view

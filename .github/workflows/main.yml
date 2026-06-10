@@ -25,10 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configuration de Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: 'npm'
@@ -40,13 +40,13 @@ jobs:
         run: npm run build
 
       - name: Configuration de GitHub Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v6
 
       - name: Upload de l'artefact (dossier dist)
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v6
         with:
           path: './dist'
 
       - name: Déploiement
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v6

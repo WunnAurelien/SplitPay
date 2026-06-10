@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, watch, ref } from 'vue'
+import { onMounted, watch, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { state, isApproved, actions } from './store'
@@ -16,6 +16,14 @@ const alertDialogRef = ref(null)
 const isMobileMenuOpen = ref(false)
 
 let scrollPosition = 0
+
+// Map locales to flags
+const localeFlags = {
+  fr: '🇫🇷',
+  en: '🇬🇧'
+}
+
+const currentFlag = computed(() => localeFlags[locale.value] || '')
 
 watch(isMobileMenuOpen, (isOpen) => {
   if (isOpen) {
@@ -186,7 +194,7 @@ const stopImpersonating = async () => {
             </div>
 
             <div class="drawer-lang-selector">
-              <label>{{ $t('app.languageLabel') }}</label>
+              <label>{{ $t('app.languageLabel') }} {{ currentFlag }}</label>
               <select v-model="locale" @change="saveLocale" class="lang-select">
                 <option value="fr">FR 🇫🇷</option>
                 <option value="en">EN 🇬🇧</option>

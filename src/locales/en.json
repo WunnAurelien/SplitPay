@@ -13,7 +13,9 @@
   "app": {
     "dashboard": "Dashboard",
     "settings": "Settings",
-    "admin": "Administration",
+    "admin": "Admin Panel",
+    "adminPendingCount": "{count} pending",
+    "adminPendingTitle": "Users awaiting approval",
     "pendingDotTitle": "Pending approval",
     "statusTitle": "Status: {status}",
     "connectedAs": "Connected as: {identity}",

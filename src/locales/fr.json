@@ -14,6 +14,8 @@
     "dashboard": "Tableau de bord",
     "settings": "Paramètres",
     "admin": "Administration",
+    "adminPendingCount": "{count} en attente",
+    "adminPendingTitle": "Utilisateurs en attente d'approbation",
     "pendingDotTitle": "En attente d'approbation",
     "statusTitle": "Statut : {status}",
     "connectedAs": "Connecté en tant que {identity}",

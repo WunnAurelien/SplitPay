@@ -26,6 +26,11 @@ const localeFlags = {
 
 const currentLanguage = computed(() => localeFlags[locale.value]?.label || '')
 
+const pendingCount = computed(() => {
+  if (!state.isAdmin) return 0
+  return state.profiles.filter(p => p.status === 'pending').length
+})
+
 watch(isMobileMenuOpen, (isOpen) => {
   if (isOpen) {
     scrollPosition = window.scrollY
@@ -137,6 +142,10 @@ const stopImpersonating = async () => {
             {{ $t('app.settings') }}
             <span v-if="state.profile?.status === 'pending'" class="inline-block w-1.5 h-1.5 bg-warning rounded-full ml-2" :title="$t('app.pendingDotTitle')"></span>
           </router-link>
+          <router-link v-if="state.isAdmin" to="/admin" class="px-3 py-2 rounded-md text-base-content/80 font-semibold hover:bg-base-300/40 flex items-center gap-1.5">
+            {{ $t('app.admin') }}
+            <span v-if="pendingCount > 0" class="badge badge-warning badge-xs" :title="$t('app.adminPendingTitle')">{{ $t('app.adminPendingCount', { count: pendingCount }) }}</span>
+          </router-link>
         </nav>
 
         <!-- Desktop User Menu -->
@@ -179,6 +188,10 @@ const stopImpersonating = async () => {
               <router-link to="/settings" class="rounded-lg px-4 py-3 text-base-content/80 font-semibold hover:bg-base-300/40" @click="isMobileMenuOpen = false">
                 ⚙️ {{ $t('app.settings') }}
                 <span v-if="state.profile?.status === 'pending'" class="inline-block w-1.5 h-1.5 bg-warning rounded-full ml-2"></span>
+              </router-link>
+              <router-link v-if="state.isAdmin" to="/admin" class="rounded-lg px-4 py-3 text-base-content/80 font-semibold hover:bg-base-300/40 flex items-center gap-1.5" @click="isMobileMenuOpen = false">
+                🛡️ {{ $t('app.admin') }}
+                <span v-if="pendingCount > 0" class="badge badge-warning badge-xs" :title="$t('app.adminPendingTitle')">{{ $t('app.adminPendingCount', { count: pendingCount }) }}</span>
               </router-link>
             </nav>
           </div>

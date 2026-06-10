@@ -128,7 +128,6 @@ const handleLogout = async () => {
 
         <div class="flex flex-wrap gap-3 mt-4">
           <BaseButton type="submit" variant="primary" :loading="isSaving">{{ $t('settings.saveChanges') }}</BaseButton>
-          <BaseButton v-if="state.isAdmin" to="/admin" variant="secondary" class="text-purple-400">{{ $t('settings.adminPanel') }}</BaseButton>
           <BaseButton type="button" @click="handleLogout" variant="secondary" class="text-error">{{ $t('settings.signOut') }}</BaseButton>
         </div>
       </form>

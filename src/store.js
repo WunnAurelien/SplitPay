@@ -1,7 +1,8 @@
 import { reactive, computed } from 'vue'
 import { useSupabase } from './supabase'
+import { setupGlobalChannels, setupGroupChannel, teardownAll, teardownGroupChannel } from './realtime'
 
-const { supabase } = useSupabase()
+const { supabase, useMock } = useSupabase()
 
 const state = reactive({
   session: null,
@@ -230,7 +231,12 @@ const actions = {
       state.loading = false
       state.isInitialized = true
 
-      // 2. Setup background listener for auth updates (login, logout, token refresh)
+      // 2. Setup Realtime global channels if in production mode
+      if (!useMock && session?.user) {
+        setupGlobalChannels(supabase, { state, actions: this })
+      }
+
+      // 3. Setup background listener for auth updates (login, logout, token refresh)
       supabase.auth.onAuthStateChange(async (event, newSession) => {
         // Skip handling during initial load to prevent parallel race conditions
         if (!state.isInitialized) return
@@ -249,12 +255,18 @@ const actions = {
               await this.fetchGroups()
               await this.fetchProfiles()
             }
+            // Setup Realtime global channels for the new session
+            if (!useMock) {
+              setupGlobalChannels(supabase, { state, actions: this })
+            }
           } else {
             state.profile = null
             state.isAdmin = false
             state.groups = []
             state.profiles = []
             state.activeGroup = null
+            // Teardown Realtime channels on logout
+            teardownAll()
           }
         } catch (callbackError) {
           console.error('onAuthStateChange callback error:', callbackError)
@@ -271,6 +283,9 @@ const actions = {
 
   async signOut() {
     state.loading = true
+    
+    // Teardown all Realtime channels
+    teardownAll()
     
     // Call Supabase signOut in the background without awaiting it.
     // This prevents any hanging promise (due to invalid API key or connection issues) from blocking the local signout flow.
@@ -528,6 +543,11 @@ const actions = {
         createdBy: group.created_by,
         members,
         expenses: expenses || []
+      }
+
+      // Setup Realtime group channel for live updates on this group's expenses
+      if (!useMock) {
+        setupGroupChannel(supabase, groupId, { state, actions: this })
       }
     } catch (e) {
       console.error('Error fetching group details:', e)

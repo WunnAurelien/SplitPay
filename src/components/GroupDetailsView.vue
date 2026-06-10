@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { state, activeGroupCalculations, actions } from '../store'
+import { teardownGroupChannel } from '../realtime'
 import BaseButton from './ui/BaseButton.vue'
 import BaseModal from './ui/BaseModal.vue'
 import BaseCard from './ui/BaseCard.vue'
@@ -63,6 +64,11 @@ onMounted(async () => {
   // Set default payer to current user
   expensePayer.value = state.session?.user?.id || ''
   initializeCustomParts()
+})
+
+// Nettoyer le channel Realtime du groupe quand on quitte la page
+onUnmounted(() => {
+  teardownGroupChannel(groupId)
 })
 
 const initializeCustomParts = () => {

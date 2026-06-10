@@ -43,7 +43,7 @@ jobs:
         uses: actions/configure-pages@v6
 
       - name: Upload de l'artefact (dossier dist)
-        uses: actions/upload-pages-artifact@v6
+        uses: actions/upload-pages-artifact@v5
         with:
           path: './dist'
 

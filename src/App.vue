@@ -193,7 +193,8 @@ const stopImpersonating = async () => {
               </div>
               <div class="user-details">
                 <span class="drawer-username">{{ state.profile?.username || state.session?.user?.email }}</span>
-                <span class="drawer-status-label">{{ getStatusLabel(state.profile?.status) }}</span>
+                <span class="user-status-dot" :class="state.profile?.status"
+                  :title="$t('app.statusTitle', { status: getStatusLabel(state.profile?.status) })"></span>
               </div>
             </div>
 

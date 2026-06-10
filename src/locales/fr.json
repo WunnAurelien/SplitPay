@@ -16,7 +16,7 @@
     "admin": "Administration",
     "pendingDotTitle": "En attente d'approbation",
     "statusTitle": "Statut : {status}",
-    "testingAs": "Mode test : connecté en tant que {identity}",
+    "connectedAs": "Connecté en tant que {identity}",
     "returnToAdmin": "Retourner à l'Admin",
     "languageLabel": "Langue :"
   },

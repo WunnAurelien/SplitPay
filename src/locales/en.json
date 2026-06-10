@@ -16,7 +16,7 @@
     "admin": "Administration",
     "pendingDotTitle": "Pending approval",
     "statusTitle": "Status: {status}",
-    "testingAs": "Testing as: {identity}",
+    "connectedAs": "Connected as: {identity}",
     "returnToAdmin": "Return to Admin",
     "languageLabel": "Language:"
   },

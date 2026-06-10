@@ -1,10 +1,9 @@
 <template>
-  <component
-    :is="to ? 'router-link' : 'button'"
-    :to="to"
+  <button
     class="btn"
     :class="buttonClasses"
     :disabled="disabled || loading"
+    @click="handleClick"
     v-bind="$attrs"
   >
     <svg v-if="loading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -12,11 +11,14 @@
       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
     </svg>
     <slot></slot>
-  </component>
+  </button>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const props = defineProps({
   variant: {
@@ -40,6 +42,16 @@ const props = defineProps({
     required: false
   }
 })
+
+const emit = defineEmits(['click'])
+
+const handleClick = (event) => {
+  if (props.to) {
+    router.push(props.to)
+  } else {
+    emit('click', event)
+  }
+}
 
 const buttonClasses = computed(() => {
   const classes = []

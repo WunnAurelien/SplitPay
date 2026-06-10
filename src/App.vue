@@ -98,7 +98,7 @@ const stopImpersonating = async () => {
     <!-- Impersonation Banner -->
     <div v-if="state.impersonatingFrom" class="bg-gradient-to-r from-cyan-600/20 via-transparent to-purple-600/20 backdrop-blur-sm border-b border-base-300 sticky top-0 z-50">
       <div class="max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
-        <div class="text-sm font-semibold text-base-content">🕵️‍♂️ {{ $t('app.testingAs', { identity: state.profile?.username || state.profile?.email }) }}</div>
+        <div class="text-sm font-semibold text-base-content">🕵️‍♂️ {{ $t('app.connectedAs', { identity: state.profile?.username || state.profile?.email }) }}</div>
         <BaseButton @click="stopImpersonating" variant="primary" size="sm">{{ $t('app.returnToAdmin') }}</BaseButton>
       </div>
     </div>
@@ -123,8 +123,8 @@ const stopImpersonating = async () => {
         <!-- Desktop User Menu -->
         <div class="hidden md:flex items-center gap-3">
           <select v-model="locale" @change="saveLocale" class="select select-sm select-bordered">
-            <option value="fr">FR</option>
-            <option value="en">EN</option>
+            <option value="fr">🇫🇷 FR</option>
+            <option value="en">🇬🇧 EN</option>
           </select>
 
           <div class="flex items-center gap-2">
@@ -178,8 +178,8 @@ const stopImpersonating = async () => {
             <div class="flex flex-col gap-2">
               <label class="text-sm font-semibold">{{ $t('app.languageLabel') }}</label>
               <select v-model="locale" @change="saveLocale" class="select select-sm select-bordered">
-                <option value="fr">FR</option>
-                <option value="en">EN</option>
+                <option value="fr">🇫🇷 FR</option>
+                <option value="en">🇬🇧 EN</option>
               </select>
             </div>
 
@@ -192,6 +192,23 @@ const stopImpersonating = async () => {
     <main class="mx-auto w-full max-w-6xl px-4 py-6">
       <router-view />
     </main>
+
+    <!-- Confirm Dialog Modal -->
+    <BaseModal ref="confirmDialogRef" :title="state.confirmState.title" :show-close="false">
+      <p>{{ state.confirmState.message }}</p>
+      <template #actions>
+        <BaseButton @click="state.confirmState.reject?.()" variant="secondary" size="sm">{{ state.confirmState.cancelText }}</BaseButton>
+        <BaseButton @click="state.confirmState.resolve?.()" variant="danger" size="sm">{{ state.confirmState.confirmText }}</BaseButton>
+      </template>
+    </BaseModal>
+
+    <!-- Alert Dialog Modal -->
+    <BaseModal ref="alertDialogRef" :title="state.alertState.title" :show-close="false">
+      <p>{{ state.alertState.message }}</p>
+      <template #actions>
+        <BaseButton @click="state.alertState.resolve?.()" variant="primary" size="sm">{{ state.alertState.okText }}</BaseButton>
+      </template>
+    </BaseModal>
   </div>
 </template>
 

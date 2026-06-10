@@ -17,13 +17,13 @@ const isMobileMenuOpen = ref(false)
 
 let scrollPosition = 0
 
-// Map locales to flags
+// Map locales to flag icons
 const localeFlags = {
-  fr: '🇫🇷',
-  en: '🇬🇧'
+  fr: { code: 'fr', label: 'FR' },
+  en: { code: 'gb', label: 'EN' }
 }
 
-const currentFlag = computed(() => localeFlags[locale.value] || '')
+const currentLanguage = computed(() => localeFlags[locale.value]?.label || '')
 
 watch(isMobileMenuOpen, (isOpen) => {
   if (isOpen) {
@@ -133,8 +133,12 @@ const stopImpersonating = async () => {
         <div class="user-menu desktop-only">
           <div class="lang-selector">
             <select v-model="locale" @change="saveLocale" class="lang-select">
-              <option value="fr">FR 🇫🇷</option>
-              <option value="en">EN 🇬🇧</option>
+              <option value="fr">
+                <span class="fi fi-fr"></span> FR
+              </option>
+              <option value="en">
+                <span class="fi fi-gb"></span> EN
+              </option>
             </select>
           </div>
 
@@ -194,10 +198,14 @@ const stopImpersonating = async () => {
             </div>
 
             <div class="drawer-lang-selector">
-              <label>{{ $t('app.languageLabel') }} {{ currentFlag }}</label>
+              <label>{{ $t('app.languageLabel') }}</label>
               <select v-model="locale" @change="saveLocale" class="lang-select">
-                <option value="fr">FR 🇫🇷</option>
-                <option value="en">EN 🇬🇧</option>
+                <option value="fr">
+                  <span class="fi fi-fr"></span> FR
+                </option>
+                <option value="en">
+                  <span class="fi fi-gb"></span> EN
+                </option>
               </select>
             </div>
 
@@ -713,8 +721,8 @@ const stopImpersonating = async () => {
 
 .drawer-lang-selector {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .drawer-lang-selector label {
@@ -729,8 +737,8 @@ const stopImpersonating = async () => {
 
 .drawer-lang-selector .lang-select {
   padding: 6px 12px;
-  width: auto;
-  min-width: 100px;
+  width: 100%;
+  min-width: auto;
 }
 
 .drawer-logout-btn {

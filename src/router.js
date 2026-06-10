@@ -18,7 +18,8 @@ const routes = [
   {
     path: '/auth/update-password',
     name: 'update-password',
-    component: UpdatePasswordView
+    component: UpdatePasswordView,
+    meta: { skipGuard: true }
   },
   {
     path: '/',
@@ -52,7 +53,8 @@ const routes = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/'
+    name: 'not-found',
+    component: DashboardView
   }
 ]
 
@@ -62,6 +64,17 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from) => {
+  // Détection du flux password recovery Supabase
+  // L'URL arrive sous forme: /#access_token=xxx&type=recovery
+  // Vue Router interprète ça comme: path="/access_token=xxx&type=recovery"
+  // On intercepter avant tout routing normal
+  if (to.path && (to.path.includes('access_token=') || to.path.includes('type=recovery'))) {
+    // Ne pas initialiser le store, le SDK Supabase va parser le hash
+    // et établir la session. On redirige vers update-password.
+    // Le SDK Supabase parse automatiquement window.location.hash
+    return { name: 'update-password' }
+  }
+
   // Ensure global store is initialized first
   if (!state.isInitialized) {
     await actions.initialize()

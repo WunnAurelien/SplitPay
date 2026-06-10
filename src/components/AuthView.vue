@@ -32,7 +32,7 @@ const handleAuth = async () => {
     isLoading.value = true
     try {
       const { data, error } = await supabase.auth.resetPasswordForEmail(email.value, {
-        redirectTo: window.location.origin + '/#/auth/update-password'
+        redirectTo: window.location.origin + '/SplitPay/'
       })
       if (error) throw error
       successMsg.value = t('auth.resetPasswordSuccess')

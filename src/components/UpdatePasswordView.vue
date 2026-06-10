@@ -1,16 +1,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useSupabase } from '../supabase'
-import { actions } from '../store'
 import BaseButton from './ui/BaseButton.vue'
 import BaseCard from './ui/BaseCard.vue'
 import BaseInput from './ui/BaseInput.vue'
 import ErrorBanner from './ui/ErrorBanner.vue'
 
 const router = useRouter()
-const route = useRoute()
 const { t } = useI18n()
 const { supabase } = useSupabase()
 
@@ -23,32 +21,26 @@ const isRecoveryValid = ref(false)
 const checkingToken = ref(true)
 
 onMounted(async () => {
-  // Récupérer le token depuis l'URL (?token_hash=xxx&type=recovery)
-  const tokenHash = route.query.token_hash
-  const type = route.query.type
+  // Attendre que le SDK Supabase ait parsé le hash fragment (production)
+  // ou que le mock ait établi la session (développement)
+  // On réessaie getSession() plusieurs fois avec des délais
+  let attempts = 0
+  const maxAttempts = 20 // 20 * 500ms = 10s max
 
-  if (tokenHash && type === 'recovery') {
-    // Échanger le token contre une session temporaire
-    const { data, error } = await supabase.auth.verifyOtp({
-      type: 'recovery',
-      token_hash: tokenHash,
-    })
-    if (error) {
-      errorMsg.value = error.message || t('auth.authErrorFallback')
-      isRecoveryValid.value = false
-    } else {
+  while (attempts < maxAttempts) {
+    const { data } = await supabase.auth.getSession()
+    if (data?.session) {
       isRecoveryValid.value = true
+      checkingToken.value = false
+      return
     }
-  } else {
-    // Vérifier si l'utilisateur a déjà une session de recovery en cours
-    const { data: sessionData } = await supabase.auth.getSession()
-    if (sessionData?.session?.is_recovery || sessionData?.session) {
-      isRecoveryValid.value = true
-    } else {
-      errorMsg.value = t('auth.authErrorFallback')
-      isRecoveryValid.value = false
-    }
+    await new Promise(r => setTimeout(r, 500))
+    attempts++
   }
+
+  // Timeout : pas de session récupérée
+  errorMsg.value = t('auth.authErrorFallback')
+  isRecoveryValid.value = false
   checkingToken.value = false
 })
 
@@ -56,7 +48,6 @@ const handleUpdatePassword = async () => {
   errorMsg.value = ''
   successMsg.value = ''
 
-  // Validation
   if (newPassword.value.length < 6) {
     errorMsg.value = t('auth.passwordMinLength')
     return
@@ -68,16 +59,12 @@ const handleUpdatePassword = async () => {
 
   isLoading.value = true
   try {
-    const { data, error } = await supabase.auth.updateUser({
-      password: newPassword.value
-    })
+    const { data, error } = await supabase.auth.updateUser({ password: newPassword.value })
     if (error) throw error
 
-    // Succès : déconnecter l'utilisateur et rediriger vers la page de connexion
     await supabase.auth.signOut()
     successMsg.value = t('auth.passwordUpdated')
 
-    // Redirection vers /auth après 3 secondes
     setTimeout(() => {
       router.push('/auth')
     }, 3000)
@@ -108,13 +95,13 @@ const handleUpdatePassword = async () => {
         </p>
       </div>
 
-      <!-- Vérification du token en cours -->
+      <!-- Vérification de la session en cours -->
       <div v-if="checkingToken" class="py-8 text-center">
         <span class="loading loading-spinner loading-lg text-primary"></span>
         <p class="mt-4 text-sm text-base-content/70">{{ $t('common.loading') }}</p>
       </div>
 
-      <!-- Token invalide -->
+      <!-- Session invalide -->
       <div v-else-if="!isRecoveryValid && errorMsg" class="space-y-5">
         <ErrorBanner :error="errorMsg" />
         <BaseButton class="w-full" type="button" variant="primary" @click="router.push('/auth')">

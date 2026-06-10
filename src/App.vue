@@ -1,14 +1,16 @@
 <script setup>
-import { onMounted, watch, ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, onUnmounted, watch, ref, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { state, isApproved, actions } from './store'
+import { useSupabase } from './supabase'
 import BaseButton from './components/ui/BaseButton.vue'
 import BaseModal from './components/ui/BaseModal.vue'
 import ErrorBanner from './components/ui/ErrorBanner.vue'
 
 const router = useRouter()
 const { locale, t } = useI18n()
+const { supabase } = useSupabase()
 
 const confirmDialogRef = ref(null)
 const alertDialogRef = ref(null)
@@ -57,6 +59,23 @@ watch(() => state.alertState?.isOpen, (isOpen) => {
 })
 
 onMounted(async () => {
+  // Détection du hash recovery AVANT Vue Router ne le consomme
+  // Le SDK Supabase parse le hash fragment et établit la session automatiquement
+  const fullHash = window.location.hash
+  if (fullHash.includes('type=recovery')) {
+    // Attendre que le SDK ait fini de parser le hash et établi la session
+    state.isRecovery = true
+    let attempts = 0
+    while (attempts < 20) {
+      const { data } = await supabase.auth.getSession()
+      if (data?.session) {
+        router.replace('/auth/update-password')
+        return
+      }
+      await new Promise(r => setTimeout(r, 500))
+      attempts++
+    }
+  }
   await actions.initialize()
 })
 

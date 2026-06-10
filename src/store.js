@@ -7,6 +7,7 @@ const state = reactive({
   session: null,
   profile: null,
   isAdmin: false,
+  isRecovery: false, // Flag: PASSWORD_RECOVERY event detected
   groups: [],
   profiles: [], // All approved profiles for adding to groups, or all profiles for admin panel
   activeGroup: null,

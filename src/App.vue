@@ -4,6 +4,9 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { state, isApproved, actions } from './store'
 import { supabase } from './supabase'
+import BaseButton from './components/ui/BaseButton.vue'
+import BaseModal from './components/ui/BaseModal.vue'
+import ErrorBanner from './components/ui/ErrorBanner.vue'
 
 const router = useRouter()
 const { locale, t } = useI18n()
@@ -73,9 +76,9 @@ const stopImpersonating = async () => {
         <span class="banner-text">
           🕵️‍♂️ {{ $t('app.testingAs', { identity: state.profile?.username || state.profile?.email }) }}
         </span>
-        <button @click="stopImpersonating" class="btn btn-primary btn-sm stop-imp-btn">
+        <BaseButton @click="stopImpersonating" variant="primary" size="sm" class="stop-imp-btn">
           {{ $t('app.returnToAdmin') }}
-        </button>
+        </BaseButton>
       </div>
     </div>
 
@@ -114,9 +117,9 @@ const stopImpersonating = async () => {
             <span class="user-status-dot" :class="state.profile?.status"
               :title="$t('app.statusTitle', { status: getStatusLabel(state.profile?.status) })"></span>
           </div>
-          <button @click="handleLogout" class="btn btn-secondary btn-sm logout-btn">
+          <BaseButton @click="handleLogout" variant="secondary" size="sm" class="logout-btn">
             {{ $t('common.logout') }}
-          </button>
+          </BaseButton>
         </div>
 
         <!-- Hamburger Button (Mobile only) -->
@@ -127,58 +130,58 @@ const stopImpersonating = async () => {
           <span class="hamburger-line"></span>
         </button>
       </div>
+    </header>
 
-      <!-- Mobile Slide-over Drawer Menu -->
-      <transition name="slide">
-        <div v-if="isMobileMenuOpen" class="mobile-drawer-overlay" @click.self="isMobileMenuOpen = false">
-          <div class="mobile-drawer">
-            <div class="drawer-header">
-              <div class="logo-container">
-                <div class="logo-icon">S</div>
-                <span>SplitPay</span>
+    <!-- Mobile Slide-over Drawer Menu -->
+    <transition name="slide">
+      <div v-if="isMobileMenuOpen" class="mobile-drawer-overlay" @click.self="isMobileMenuOpen = false">
+        <div class="mobile-drawer">
+          <div class="drawer-header">
+            <div class="logo-container">
+              <div class="logo-icon">S</div>
+              <span>SplitPay</span>
+            </div>
+            <button @click="isMobileMenuOpen = false" class="drawer-close-btn">&times;</button>
+          </div>
+
+          <nav class="drawer-nav">
+            <router-link v-if="isApproved" to="/" class="drawer-item" @click="isMobileMenuOpen = false">
+              📊 {{ $t('app.dashboard') }}
+            </router-link>
+
+            <router-link to="/settings" class="drawer-item" @click="isMobileMenuOpen = false">
+              ⚙️ {{ $t('app.settings') }}
+              <span v-if="state.profile?.status === 'pending'" class="pending-dot inline"></span>
+            </router-link>
+          </nav>
+
+          <div class="drawer-footer">
+            <div class="drawer-user-info">
+              <div class="user-avatar-large">
+                {{ (state.profile?.username || state.session?.user?.email)[0].toUpperCase() }}
+                <span class="user-status-dot-large" :class="state.profile?.status"></span>
               </div>
-              <button @click="isMobileMenuOpen = false" class="drawer-close-btn">&times;</button>
+              <div class="user-details">
+                <span class="drawer-username">{{ state.profile?.username || state.session?.user?.email }}</span>
+                <span class="drawer-status-label">{{ getStatusLabel(state.profile?.status) }}</span>
+              </div>
             </div>
 
-            <nav class="drawer-nav">
-              <router-link v-if="isApproved" to="/" class="drawer-item" @click="isMobileMenuOpen = false">
-                📊 {{ $t('app.dashboard') }}
-              </router-link>
-
-              <router-link to="/settings" class="drawer-item" @click="isMobileMenuOpen = false">
-                ⚙️ {{ $t('app.settings') }}
-                <span v-if="state.profile?.status === 'pending'" class="pending-dot inline"></span>
-              </router-link>
-            </nav>
-
-            <div class="drawer-footer">
-              <div class="drawer-user-info">
-                <div class="user-avatar-large">
-                  {{ (state.profile?.username || state.session?.user?.email)[0].toUpperCase() }}
-                  <span class="user-status-dot-large" :class="state.profile?.status"></span>
-                </div>
-                <div class="user-details">
-                  <span class="drawer-username">{{ state.profile?.username || state.session?.user?.email }}</span>
-                  <span class="drawer-status-label">{{ getStatusLabel(state.profile?.status) }}</span>
-                </div>
-              </div>
-
-              <div class="drawer-lang-selector">
-                <label>{{ $t('app.languageLabel') }}</label>
-                <select v-model="locale" @change="saveLocale" class="lang-select">
-                  <option value="fr">FR 🇫🇷</option>
-                  <option value="en">EN 🇬🇧</option>
-                </select>
-              </div>
-
-              <button @click="handleLogout(); isMobileMenuOpen = false" class="btn btn-danger drawer-logout-btn">
-                🚪 {{ $t('common.logout') }}
-              </button>
+            <div class="drawer-lang-selector">
+              <label>{{ $t('app.languageLabel') }}</label>
+              <select v-model="locale" @change="saveLocale" class="lang-select">
+                <option value="fr">FR 🇫🇷</option>
+                <option value="en">EN 🇬🇧</option>
+              </select>
             </div>
+
+            <BaseButton @click="handleLogout(); isMobileMenuOpen = false" variant="danger" class="drawer-logout-btn">
+              🚪 {{ $t('common.logout') }}
+            </BaseButton>
           </div>
         </div>
-      </transition>
-    </header>
+      </div>
+    </transition>
 
     <!-- Main Content Root Router Mounting -->
     <main class="main-content">
@@ -188,56 +191,60 @@ const stopImpersonating = async () => {
       </div>
       <template v-else>
         <!-- Global Connection / Authentication Error Banner -->
-        <div v-if="state.connectionError" class="error-banner-global glass-panel">
-          <span class="warning-icon">⚠️</span>
-          <div class="error-details">
-            <h3>{{ $t('common.errorConfig') }}</h3>
-            <p>{{ state.connectionError }}</p>
-            <p class="error-resolution" v-html="$t('common.errorResolution')"></p>
-          </div>
-        </div>
+        <ErrorBanner 
+          v-if="state.connectionError" 
+          :title="$t('common.errorConfig')"
+          :error="state.connectionError"
+          global
+        >
+          <p class="error-resolution" v-html="$t('common.errorResolution')"></p>
+        </ErrorBanner>
         <router-view />
       </template>
     </main>
 
     <!-- Global Custom Confirm Dialog -->
-    <dialog ref="confirmDialogRef" @cancel.prevent="state.confirmState?.reject()" class="global-confirm-dialog">
-      <div class="dialog-content" v-if="state.confirmState?.isOpen">
-        <div class="dialog-header">
-          <h2>{{ state.confirmState.title || 'Confirmation' }}</h2>
-        </div>
+    <BaseModal 
+      ref="confirmDialogRef" 
+      :title="state.confirmState?.title || 'Confirmation'"
+      :show-close="false"
+      @close="state.confirmState?.reject()"
+    >
+      <template v-if="state.confirmState?.isOpen">
         <p class="confirm-message"
           style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 24px;">
           {{ state.confirmState.message }}
         </p>
-        <div class="dialog-actions" style="display: flex; gap: 12px; justify-content: flex-end;">
-          <button @click="state.confirmState.reject()" class="btn btn-secondary btn-sm">
-            {{ state.confirmState.cancelText || $t('common.cancel') || 'Annuler' }}
-          </button>
-          <button @click="state.confirmState.resolve()" class="btn btn-primary btn-sm">
-            {{ state.confirmState.confirmText || $t('common.confirm') || 'Confirmer' }}
-          </button>
-        </div>
-      </div>
-    </dialog>
+      </template>
+      <template #actions v-if="state.confirmState?.isOpen">
+        <BaseButton @click="state.confirmState.reject()" variant="secondary" size="sm">
+          {{ state.confirmState.cancelText || $t('common.cancel') || 'Annuler' }}
+        </BaseButton>
+        <BaseButton @click="state.confirmState.resolve()" variant="primary" size="sm">
+          {{ state.confirmState.confirmText || $t('common.confirm') || 'Confirmer' }}
+        </BaseButton>
+      </template>
+    </BaseModal>
 
     <!-- Global Custom Alert Dialog -->
-    <dialog ref="alertDialogRef" @cancel.prevent="state.alertState?.resolve()" class="global-alert-dialog">
-      <div class="dialog-content" v-if="state.alertState?.isOpen">
-        <div class="dialog-header">
-          <h2>{{ state.alertState.title || 'Notification' }}</h2>
-        </div>
+    <BaseModal 
+      ref="alertDialogRef" 
+      :title="state.alertState?.title || 'Notification'"
+      :show-close="false"
+      @close="state.alertState?.resolve()"
+    >
+      <template v-if="state.alertState?.isOpen">
         <p class="alert-message"
           style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 24px;">
           {{ state.alertState.message }}
         </p>
-        <div class="dialog-actions" style="display: flex; gap: 12px; justify-content: flex-end;">
-          <button @click="state.alertState.resolve()" class="btn btn-primary btn-sm">
-            {{ state.alertState.okText || 'OK' }}
-          </button>
-        </div>
-      </div>
-    </dialog>
+      </template>
+      <template #actions v-if="state.alertState?.isOpen">
+        <BaseButton @click="state.alertState.resolve()" variant="primary" size="sm">
+          {{ state.alertState.okText || 'OK' }}
+        </BaseButton>
+      </template>
+    </BaseModal>
   </div>
 </template>
 
@@ -306,6 +313,7 @@ const stopImpersonating = async () => {
   align-items: center;
   justify-content: center;
   min-height: calc(100vh - 160px);
+  min-height: calc(100dvh - 160px);
   gap: 16px;
   color: var(--text-muted);
 }
@@ -492,7 +500,7 @@ const stopImpersonating = async () => {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
+  right: 0;
   height: 100vh;
   height: 100dvh;
   background: rgba(4, 5, 8, 0.6);

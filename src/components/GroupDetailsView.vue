@@ -3,6 +3,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { state, activeGroupCalculations, actions } from '../store'
+import BaseButton from './ui/BaseButton.vue'
+import BaseModal from './ui/BaseModal.vue'
+import BaseCard from './ui/BaseCard.vue'
+import BaseInput from './ui/BaseInput.vue'
+import ErrorBanner from './ui/ErrorBanner.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -412,26 +417,24 @@ const handleBackdropClick = (dialog, event) => {
         <h1>{{ state.activeGroup.name }}</h1>
       </div>
       <div class="action-buttons">
-        <button @click="copyInviteLink" class="btn btn-secondary btn-sm" :class="{ 'invite-success-btn': inviteCopied }">
+        <BaseButton @click="copyInviteLink" variant="secondary" size="sm" :class="['invite-btn', { 'invite-success-btn': inviteCopied }]">
           {{ inviteCopied ? $t('group.inviteCopied') : $t('group.inviteBtn') }}
-        </button>
-        <button @click="openExpenseModal" class="btn btn-primary btn-sm">
+        </BaseButton>
+        <BaseButton @click="openExpenseModal" variant="primary" size="sm">
           {{ $t('group.addExpenseBtn') }}
-        </button>
+        </BaseButton>
       </div>
     </div>
 
     <!-- Error state -->
-    <div v-if="state.error" class="error-banner" style="margin-bottom: 20px;">
-      {{ state.error }}
-    </div>
+    <ErrorBanner v-if="state.error" :error="state.error" style="margin-bottom: 20px;" />
 
     <!-- Main Grid -->
     <div class="group-grid">
       <!-- Left Column: Expenses & Settlements -->
       <div class="left-column">
         <!-- Settlements Card -->
-        <div class="settlements-section glass-panel">
+        <BaseCard class="settlements-section">
           <h3>{{ $t('group.settlementGuideTitle') }}</h3>
           <p class="section-desc">{{ $t('group.settlementGuideDesc') }}</p>
           
@@ -448,21 +451,21 @@ const handleBackdropClick = (dialog, event) => {
               <div class="tx-info" v-html="$t('group.owesMessage', { from: tx.fromName, to: tx.toName, amount: formatEuro(tx.amount) })">
               </div>
               <div class="tx-actions">
-                <button 
+                <BaseButton 
                   v-if="(state.isAdmin || state.session.user.id === tx.fromId) && state.session.user.id !== tx.toId" 
                   @click="handleSettleUp(tx)" 
-                  class="btn btn-primary btn-sm"
+                  variant="primary" size="sm"
                   style="padding: 6px 12px; font-size: 0.75rem;"
                 >
                   {{ $t('group.repay') }}
-                </button>
+                </BaseButton>
               </div>
             </div>
           </div>
-        </div>
+        </BaseCard>
 
         <!-- Pending Validation Reimbursements Card -->
-        <div v-if="pendingRepayments.length > 0" class="pending-repayments-section glass-panel">
+        <BaseCard v-if="pendingRepayments.length > 0" class="pending-repayments-section">
           <h3>
             {{ $t('group.pendingConfirmation') }}
             <span class="pending-badge">{{ pendingRepayments.length }}</span>
@@ -493,22 +496,22 @@ const handleBackdropClick = (dialog, event) => {
                 
                 <!-- If logged in user is the receiver or admin -->
                 <div v-if="state.isAdmin || state.session?.user?.id === rep.expense_beneficiaries?.[0]?.profile_id" style="display: flex; gap: 8px;">
-                  <button 
+                  <BaseButton 
                     @click="handleConfirmRepayment(rep.id)"
-                    class="btn btn-primary btn-sm confirm-rep-btn"
+                    variant="primary" size="sm" class="confirm-rep-btn"
                     :disabled="isConfirmingRepayment[rep.id]"
+                    :loading="isConfirmingRepayment[rep.id]"
                   >
-                    <span v-if="isConfirmingRepayment[rep.id]" class="spinner" style="width: 12px; height: 12px; margin-right: 4px;"></span>
                     <span>{{ $t('group.confirmBtn') }}</span>
-                  </button>
-                  <button 
+                  </BaseButton>
+                  <BaseButton 
                     @click="handleRejectRepayment(rep.id, rep.description)"
-                    class="btn btn-secondary btn-sm reject-rep-btn"
+                    variant="secondary" size="sm" class="reject-rep-btn"
                     style="border-color: rgba(239, 68, 68, 0.3); color: var(--color-danger);"
                     :disabled="isConfirmingRepayment[rep.id]"
                   >
                     <span>{{ locale === 'fr' ? 'Refuser' : 'Decline' }}</span>
-                  </button>
+                  </BaseButton>
                 </div>
                 
                 <!-- If logged in user is the sender (payer) -->
@@ -516,13 +519,13 @@ const handleBackdropClick = (dialog, event) => {
                   <span class="awaiting-label">
                     ⏳ {{ $t('group.awaiting') }}
                   </span>
-                  <button 
+                  <BaseButton 
                     @click="handleDeleteExpense(rep.id, rep.description)"
-                    class="btn btn-secondary btn-sm cancel-rep-btn"
+                    variant="secondary" size="sm" class="cancel-rep-btn"
                     style="border-color: rgba(255, 255, 255, 0.1); color: var(--text-muted); padding: 4px 8px; font-size: 0.75rem;"
                   >
                     <span>{{ locale === 'fr' ? 'Annuler' : 'Cancel' }}</span>
-                  </button>
+                  </BaseButton>
                 </div>
 
                 <!-- Other group members -->
@@ -532,17 +535,17 @@ const handleBackdropClick = (dialog, event) => {
               </div>
             </div>
           </div>
-        </div>
+        </BaseCard>
 
         <!-- Expenses List Card -->
-        <div class="expenses-section glass-panel">
+        <BaseCard class="expenses-section">
           <h3>{{ $t('group.expenseLogTitle') }}</h3>
           
           <div v-if="state.activeGroup.expenses.filter(e => !e.is_pending).length === 0" class="empty-log">
             <p>{{ $t('group.noExpensesLogged') }}</p>
-            <button @click="openExpenseModal" class="btn btn-secondary btn-sm" style="margin-top: 10px;">
+            <BaseButton @click="openExpenseModal" variant="secondary" size="sm" style="margin-top: 10px;">
               {{ $t('group.logFirstExpenseBtn') }}
-            </button>
+            </BaseButton>
           </div>
 
           <div v-else class="expenses-list">
@@ -575,12 +578,12 @@ const handleBackdropClick = (dialog, event) => {
               </div>
             </div>
           </div>
-        </div>
+        </BaseCard>
       </div>
 
       <!-- Right Column: Members Sidebar -->
       <div class="right-column">
-        <div class="members-card glass-panel">
+        <BaseCard class="members-card">
           <h3>{{ $t('group.membersTitle') }} ({{ state.activeGroup.members?.length || 0 }})</h3>
           
           <div class="members-list">
@@ -628,184 +631,160 @@ const handleBackdropClick = (dialog, event) => {
               </div>
             </div>
           </div>
-        </div>
+        </BaseCard>
       </div>
     </div>
 
     <!-- Modals -->
     <!-- 1. Add Expense Dialog -->
-    <dialog 
+    <BaseModal 
       ref="addExpenseDialog" 
-      closedby="any" 
-      @click="handleBackdropClick(addExpenseDialog, $event)"
-      aria-labelledby="expense-title"
+      :title="$t('group.addNewExpense')"
+      @close="closeExpenseModal"
     >
-      <div class="dialog-content">
-        <div class="dialog-header">
-          <h2 id="expense-title">{{ $t('group.addNewExpense') }}</h2>
-          <button @click="closeExpenseModal" class="dialog-close">&times;</button>
-        </div>
+      <form @submit.prevent="handleAddExpense">
+        <ErrorBanner v-if="expenseError" :error="expenseError" />
 
-        <form @submit.prevent="handleAddExpense">
-          <div v-if="expenseError" class="error-banner">
-            {{ expenseError }}
-          </div>
+        <BaseInput 
+          id="exp-desc" 
+          v-model="expenseDesc" 
+          required 
+          :label="$t('group.descriptionLabel')"
+          :placeholder="t('group.descriptionPlaceholder')"
+        />
 
-          <div class="form-group">
-            <label for="exp-desc">{{ $t('group.descriptionLabel') }}</label>
-            <input 
-              type="text" 
-              id="exp-desc" 
-              v-model="expenseDesc" 
-              required 
-              :placeholder="t('group.descriptionPlaceholder')"
-            />
-          </div>
+        <BaseInput 
+          type="number" 
+          step="0.01" 
+          id="exp-amount" 
+          v-model="expenseAmount" 
+          required 
+          :label="$t('group.amountLabel')"
+          placeholder="0.00"
+          min="0.01"
+        />
 
-          <div class="form-group">
-            <label for="exp-amount">{{ $t('group.amountLabel') }}</label>
-            <input 
-              type="number" 
-              step="0.01" 
-              id="exp-amount" 
-              v-model="expenseAmount" 
-              required 
-              placeholder="0.00"
-              min="0.01"
-            />
-          </div>
+        <BaseInput 
+          type="select"
+          id="exp-payer" 
+          v-model="expensePayer" 
+          required
+          :label="$t('group.whoPaidLabel')"
+        >
+          <option 
+            v-for="m in state.activeGroup.members" 
+            :key="m.id" 
+            :value="m.id"
+          >
+            {{ m.username || m.email }}
+          </option>
+        </BaseInput>
 
-          <div class="form-group">
-            <label for="exp-payer">{{ $t('group.whoPaidLabel') }}</label>
-            <select id="exp-payer" v-model="expensePayer" required>
-              <option 
-                v-for="m in state.activeGroup.members" 
-                :key="m.id" 
-                :value="m.id"
-              >
-                {{ m.username || m.email }}
-              </option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>{{ $t('group.splitMethodLabel') }}</label>
-            <div class="split-toggle">
-              <button 
-                type="button" 
-                :class="{ active: splitType === 'equal' }" 
-                @click="splitType = 'equal'"
-              >
-                {{ $t('group.equally') }}
-              </button>
-              <button 
-                type="button" 
-                :class="{ active: splitType === 'custom' }" 
-                @click="splitType = 'custom'"
-              >
-                {{ $t('group.customParts') }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Custom Split Weight Section -->
-          <div v-if="splitType === 'custom'" class="custom-split-section">
-            <label>{{ $t('group.assignPartsLabel') }}</label>
-            <div 
-              v-for="m in state.activeGroup.members" 
-              :key="m.id" 
-              class="custom-split-row"
+        <div class="form-group">
+          <label>{{ $t('group.splitMethodLabel') }}</label>
+          <div class="split-toggle">
+            <button 
+              type="button" 
+              :class="{ active: splitType === 'equal' }" 
+              @click="splitType = 'equal'"
             >
-              <span>{{ m.username || m.email }}</span>
-              <input 
-                type="number" 
-                step="0.1" 
-                min="0" 
-                v-model="customParts[m.id]"
-                placeholder="1"
-                style="width: 80px; padding: 6px 10px;"
-              />
-            </div>
-          </div>
-
-          <div class="dialog-actions" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
-            <button type="button" @click="closeExpenseModal" class="btn btn-secondary btn-sm">
-              {{ $t('common.cancel') }}
-            </button>
-            <button type="submit" class="btn btn-primary btn-sm" :disabled="isExpenseLoading">
-              {{ $t('group.logExpenseSubmit') }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
-
-    <!-- 2. Add Member Dialog -->
-    <dialog 
-      ref="addMemberDialog" 
-      closedby="any" 
-      @click="handleBackdropClick(addMemberDialog, $event)"
-      aria-labelledby="member-title"
-    >
-      <div class="dialog-content">
-        <div class="dialog-header">
-          <h2 id="member-title">{{ $t('group.addMemberToGroup') }}</h2>
-          <button @click="closeMemberModal" class="dialog-close">&times;</button>
-        </div>
-
-        <form @submit.prevent="handleAddMember">
-          <div v-if="memberError" class="error-banner">
-            {{ memberError }}
-          </div>
-
-          <div class="form-group" v-if="addableProfiles.length > 0">
-            <label for="member-select">{{ $t('group.selectApprovedUser') }}</label>
-            <select id="member-select" v-model="selectedProfileId" required>
-              <option value="" disabled>{{ $t('group.selectUserPlaceholder') }}</option>
-              <option 
-                v-for="p in addableProfiles" 
-                :key="p.id" 
-                :value="p.id"
-              >
-                {{ p.username || p.email }}
-              </option>
-            </select>
-          </div>
-
-          <div v-else class="no-users-warning">
-            {{ $t('group.noUsersWarning') }}
-          </div>
-
-          <div class="dialog-actions" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
-            <button type="button" @click="closeMemberModal" class="btn btn-secondary btn-sm">
-              {{ $t('common.cancel') }}
+              {{ $t('group.equally') }}
             </button>
             <button 
-              v-if="addableProfiles.length > 0" 
-              type="submit" 
-              class="btn btn-primary btn-sm" 
-              :disabled="isMemberLoading"
+              type="button" 
+              :class="{ active: splitType === 'custom' }" 
+              @click="splitType = 'custom'"
             >
-              {{ $t('group.addMemberSubmit') }}
+              {{ $t('group.customParts') }}
             </button>
           </div>
-        </form>
-      </div>
-    </dialog>
-
-    <!-- 3. Settle Up (Repay) Dialog with Payment Method selection -->
-    <dialog 
-      ref="settleUpDialog" 
-      closedby="any" 
-      @click="handleBackdropClick(settleUpDialog, $event)"
-      aria-labelledby="settle-title"
-    >
-      <div class="dialog-content" v-if="activeSettleTx">
-        <div class="dialog-header">
-          <h2 id="settle-title">{{ $t('group.repayUserTitle', { name: activeSettleTx.toName }) }}</h2>
-          <button @click="closeSettleUpModal" class="dialog-close">&times;</button>
         </div>
 
+        <!-- Custom Split Weight Section -->
+        <div v-if="splitType === 'custom'" class="custom-split-section">
+          <label>{{ $t('group.assignPartsLabel') }}</label>
+          <div 
+            v-for="m in state.activeGroup.members" 
+            :key="m.id" 
+            class="custom-split-row"
+          >
+            <span>{{ m.username || m.email }}</span>
+            <input 
+              type="number" 
+              step="0.1" 
+              min="0" 
+              v-model="customParts[m.id]"
+              placeholder="1"
+              style="width: 80px; padding: 6px 10px;"
+            />
+          </div>
+        </div>
+
+        <div class="dialog-actions" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+          <BaseButton type="button" @click="closeExpenseModal" variant="secondary" size="sm">
+            {{ $t('common.cancel') }}
+          </BaseButton>
+          <BaseButton type="submit" variant="primary" size="sm" :loading="isExpenseLoading">
+            {{ $t('group.logExpenseSubmit') }}
+          </BaseButton>
+        </div>
+      </form>
+    </BaseModal>
+
+    <!-- 2. Add Member Dialog -->
+    <BaseModal 
+      ref="addMemberDialog" 
+      :title="$t('group.addMemberToGroup')"
+      @close="closeMemberModal"
+    >
+      <form @submit.prevent="handleAddMember">
+        <ErrorBanner v-if="memberError" :error="memberError" />
+
+        <BaseInput 
+          v-if="addableProfiles.length > 0"
+          type="select"
+          id="member-select" 
+          v-model="selectedProfileId" 
+          required
+          :label="$t('group.selectApprovedUser')"
+        >
+          <option value="" disabled>{{ $t('group.selectUserPlaceholder') }}</option>
+          <option 
+            v-for="p in addableProfiles" 
+            :key="p.id" 
+            :value="p.id"
+          >
+            {{ p.username || p.email }}
+          </option>
+        </BaseInput>
+
+        <div v-else class="no-users-warning">
+          {{ $t('group.noUsersWarning') }}
+        </div>
+
+        <div class="dialog-actions" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+          <BaseButton type="button" @click="closeMemberModal" variant="secondary" size="sm">
+            {{ $t('common.cancel') }}
+          </BaseButton>
+          <BaseButton 
+            v-if="addableProfiles.length > 0" 
+            type="submit" 
+            variant="primary" size="sm" 
+            :loading="isMemberLoading"
+          >
+            {{ $t('group.addMemberSubmit') }}
+          </BaseButton>
+        </div>
+      </form>
+    </BaseModal>
+
+    <!-- 3. Settle Up (Repay) Dialog with Payment Method selection -->
+    <BaseModal 
+      ref="settleUpDialog" 
+      :title="activeSettleTx ? $t('group.repayUserTitle', { name: activeSettleTx.toName }) : ''"
+      @close="closeSettleUpModal"
+    >
+      <template v-if="activeSettleTx">
         <div class="settle-amount-banner">
           <span class="settle-label">{{ $t('group.amountOwed') }}</span>
           <span class="settle-val">{{ formatEuro(activeSettleTx.amount) }}</span>
@@ -831,7 +810,7 @@ const handleBackdropClick = (dialog, event) => {
               </div>
               <div class="copy-value-box">
                 <span class="value-text">{{ activeSettleTx.phoneNumber }}</span>
-                <button type="button" @click="copyToClipboard(activeSettleTx.phoneNumber, 'phone')" class="copy-btn-sm" :class="{ 'copied-success': phoneCopied }">
+                <button type="button" @click="copyToClipboard(activeSettleTx.phoneNumber, 'phone')" class="copy-btn-sm" :class="{ 'copied-success': phoneCopied }" style="min-width: 110px;">
                   {{ phoneCopied ? $t('group.copied') : $t('group.copy') }}
                 </button>
               </div>
@@ -848,9 +827,9 @@ const handleBackdropClick = (dialog, event) => {
               </div>
               <div class="copy-value-box column-layout">
                 <span class="value-text iban-text">{{ activeSettleTx.iban }}</span>
-                <button type="button" @click="copyToClipboard(activeSettleTx.iban, 'iban')" class="btn btn-secondary btn-sm" style="width: 100%; margin-top: 8px;" :class="{ 'copied-success': ibanCopied }">
+                <BaseButton type="button" @click="copyToClipboard(activeSettleTx.iban, 'iban')" variant="secondary" size="sm" style="width: 100%; margin-top: 8px;" :class="{ 'copied-success': ibanCopied }">
                   {{ ibanCopied ? $t('group.ibanCopied') : $t('group.copyIban') }}
-                </button>
+                </BaseButton>
               </div>
             </div>
 
@@ -867,9 +846,9 @@ const handleBackdropClick = (dialog, event) => {
                 <a :href="activeSettleTx.paymentLink" target="_blank" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center;">
                   🌐 {{ $t('group.openLink') }}
                 </a>
-                <button type="button" @click="copyToClipboard(activeSettleTx.paymentLink, 'link')" class="btn btn-secondary btn-sm" style="flex: 1;" :class="{ 'copied-success': linkCopied }">
+                <BaseButton type="button" @click="copyToClipboard(activeSettleTx.paymentLink, 'link')" variant="secondary" size="sm" style="flex: 1; min-width: 140px;" :class="{ 'copied-success': linkCopied }">
                   {{ linkCopied ? $t('group.linkCopied') : $t('group.copyLink') }}
-                </button>
+                </BaseButton>
               </div>
             </div>
 
@@ -979,26 +958,22 @@ const handleBackdropClick = (dialog, event) => {
           </div>
 
           <div class="dialog-actions" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
-            <button type="button" @click="closeSettleUpModal" class="btn btn-secondary btn-sm">
+            <BaseButton type="button" @click="closeSettleUpModal" variant="secondary" size="sm">
               {{ $t('common.cancel') }}
-            </button>
-            <button type="submit" class="btn btn-primary btn-sm" :disabled="isSettleLoading">
-              <span v-if="isSettleLoading" class="spinner"></span>
+            </BaseButton>
+            <BaseButton type="submit" variant="primary" size="sm" :loading="isSettleLoading">
               <span>{{ $t('group.declareRepayment') }}</span>
-            </button>
+            </BaseButton>
           </div>
         </form>
-      </div>
-    </dialog>
+      </template>
+    </BaseModal>
   </div>
-  <div v-else-if="state.error" class="empty-state" style="color: var(--accent-red);">
-    <div style="font-size: 2.5rem; margin-bottom: 15px;">⚠️</div>
-    <h3>{{ $t('common.errorConfig') }}</h3>
-    <p>{{ state.error }}</p>
+  <ErrorBanner v-else-if="state.error" :error="state.error" :title="$t('common.errorConfig')" global>
     <router-link to="/" class="btn btn-secondary btn-sm" style="margin-top: 15px; display: inline-block;">
       &larr; {{ $t('common.backToDashboard') }}
     </router-link>
-  </div>
+  </ErrorBanner>
   <div v-else class="empty-state">
     {{ $t('group.loadingGroup') }}
   </div>
@@ -1027,6 +1002,31 @@ const handleBackdropClick = (dialog, event) => {
 .action-buttons {
   display: flex;
   gap: 12px;
+  align-items: center; /* Empêche l'étirement vertical */
+}
+
+.invite-btn {
+  min-width: 170px;
+}
+
+@media (max-width: 640px) {
+  .group-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .action-buttons {
+    width: 100%;
+  }
+  .action-buttons > * {
+    flex: 1;
+    justify-content: center;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .invite-btn {
+    min-width: 0;
+  }
 }
 
 .group-grid {

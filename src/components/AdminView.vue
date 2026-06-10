@@ -3,6 +3,9 @@ import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { state, actions } from '../store'
+import BaseButton from './ui/BaseButton.vue'
+import BaseCard from './ui/BaseCard.vue'
+import ErrorBanner from './ui/ErrorBanner.vue'
 
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -41,12 +44,10 @@ const handleImpersonate = async (profile) => {
     </div>
 
     <!-- Error Banner -->
-    <div v-if="state.error" class="error-banner" style="margin-bottom: 25px;">
-      {{ state.error }}
-    </div>
+    <ErrorBanner v-if="state.error" :error="state.error" style="margin-bottom: 25px;" />
 
     <!-- Profiles Table -->
-    <div class="profiles-card glass-panel">
+    <BaseCard class="profiles-card">
       <h3>{{ $t('admin.allUserProfiles', { count: state.profiles.length }) }}</h3>
 
       <div class="table-container">
@@ -91,19 +92,19 @@ const handleImpersonate = async (profile) => {
               <td class="actions-col">
                 <!-- No status changes allowed for the active admin themselves -->
                 <div v-if="profile.id !== state.session?.user?.id" class="action-buttons">
-                  <button v-if="profile.status === 'approved'" @click="handleImpersonate(profile)"
-                    class="btn btn-secondary btn-sm impersonate-btn"
+                  <BaseButton v-if="profile.status === 'approved'" @click="handleImpersonate(profile)"
+                    variant="secondary" size="sm" class="impersonate-btn"
                     style="border-color: rgba(6, 182, 212, 0.3); color: var(--accent-cyan);">
                     {{ $t('admin.loginAs') }}
-                  </button>
-                  <button v-if="profile.status !== 'approved'" @click="handleStatusUpdate(profile.id, 'approved')"
-                    class="btn btn-secondary btn-sm approve-btn">
+                  </BaseButton>
+                  <BaseButton v-if="profile.status !== 'approved'" @click="handleStatusUpdate(profile.id, 'approved')"
+                    variant="secondary" size="sm" class="approve-btn">
                     {{ $t('admin.approveBtn') }}
-                  </button>
-                  <button v-if="profile.status !== 'rejected'" @click="handleStatusUpdate(profile.id, 'rejected')"
-                    class="btn btn-secondary btn-sm reject-btn">
+                  </BaseButton>
+                  <BaseButton v-if="profile.status !== 'rejected'" @click="handleStatusUpdate(profile.id, 'rejected')"
+                    variant="secondary" size="sm" class="reject-btn">
                     {{ $t('admin.rejectBtn') }}
-                  </button>
+                  </BaseButton>
                 </div>
                 <span v-else class="text-muted italic">{{ $t('admin.protected') }}</span>
               </td>
@@ -111,7 +112,7 @@ const handleImpersonate = async (profile) => {
           </tbody>
         </table>
       </div>
-    </div>
+    </BaseCard>
   </div>
 </template>
 

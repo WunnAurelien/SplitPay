@@ -15,6 +15,24 @@ const confirmDialogRef = ref(null)
 const alertDialogRef = ref(null)
 const isMobileMenuOpen = ref(false)
 
+let scrollPosition = 0
+
+watch(isMobileMenuOpen, (isOpen) => {
+  if (isOpen) {
+    scrollPosition = window.scrollY
+    document.body.style.overflow = 'hidden'
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${scrollPosition}px`
+    document.body.style.width = '100%'
+  } else {
+    document.body.style.overflow = ''
+    document.body.style.position = ''
+    document.body.style.top = ''
+    document.body.style.width = ''
+    window.scrollTo(0, scrollPosition)
+  }
+})
+
 watch(() => state.confirmState?.isOpen, (isOpen) => {
   if (isOpen) {
     confirmDialogRef.value?.showModal()
@@ -134,8 +152,8 @@ const stopImpersonating = async () => {
 
     <!-- Mobile Slide-over Drawer Menu -->
     <transition name="slide">
-      <div v-if="isMobileMenuOpen" class="mobile-drawer-overlay" @click.self="isMobileMenuOpen = false">
-        <div class="mobile-drawer">
+      <div v-if="isMobileMenuOpen" class="mobile-drawer-overlay" @click.self="isMobileMenuOpen = false" @touchmove.self.prevent>
+        <div class="mobile-drawer" @touchmove.stop>
           <div class="drawer-header">
             <div class="logo-container">
               <div class="logo-icon">S</div>
@@ -503,6 +521,8 @@ const stopImpersonating = async () => {
   right: 0;
   height: 100vh;
   height: 100dvh;
+  /* iOS Safari fill-available fallback */
+  height: -webkit-fill-available;
   background: rgba(4, 5, 8, 0.6);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -519,12 +539,14 @@ const stopImpersonating = async () => {
   background: var(--bg-secondary);
   border-left: 1px solid var(--border-color);
   padding: 24px;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
   overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .drawer-header {

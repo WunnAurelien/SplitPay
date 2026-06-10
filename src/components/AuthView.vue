@@ -4,6 +4,10 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { supabase } from '../supabase'
 import { actions } from '../store'
+import BaseButton from './ui/BaseButton.vue'
+import BaseCard from './ui/BaseCard.vue'
+import BaseInput from './ui/BaseInput.vue'
+import ErrorBanner from './ui/ErrorBanner.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -94,7 +98,7 @@ const goToLoginAfterSignUp = () => {
     <div class="glow-sphere purple"></div>
     <div class="glow-sphere cyan"></div>
 
-    <div class="auth-card glass-panel">
+    <BaseCard class="auth-card">
       <div class="auth-header">
         <div class="logo-icon">S</div>
         <h2>{{ isLogin ? $t('auth.signInTitle') : $t('auth.signUpTitle') }}</h2>
@@ -104,68 +108,57 @@ const goToLoginAfterSignUp = () => {
       <div v-if="successMsg" class="auth-success-state">
         <div class="success-icon">✉️</div>
         <h3>{{ successMsg }}</h3>
-        <button type="button" class="btn btn-primary" style="margin-top: 24px; width: 100%;" @click="goToLoginAfterSignUp">
+        <BaseButton type="button" variant="primary" style="margin-top: 24px; width: 100%;" @click="goToLoginAfterSignUp">
           {{ $t('auth.signInBtn') }}
-        </button>
+        </BaseButton>
       </div>
 
       <template v-else>
         <form @submit.prevent="handleAuth" class="auth-form">
-          <div v-if="errorMsg" class="error-banner">
-            {{ errorMsg }}
-          </div>
+          <ErrorBanner v-if="errorMsg" :error="errorMsg" />
 
-          <div class="form-group">
-            <label for="email">{{ $t('auth.emailLabel') }}</label>
-            <input 
-              type="email" 
-              id="email" 
-              v-model="email" 
-              required 
-              :placeholder="t('auth.emailPlaceholder')" 
-              />
-          </div>
+          <BaseInput
+            type="email"
+            id="email"
+            v-model="email"
+            required
+            :label="$t('auth.emailLabel')"
+            :placeholder="t('auth.emailPlaceholder')"
+          />
 
-          <div class="form-group">
-            <label for="password">{{ $t('auth.passwordLabel') }}</label>
-            <input 
-              type="password" 
-              id="password" 
-              v-model="password" 
-              required 
-              placeholder="••••••••" 
-              />
-          </div>
+          <BaseInput
+            type="password"
+            id="password"
+            v-model="password"
+            required
+            :label="$t('auth.passwordLabel')"
+            placeholder="••••••••"
+          />
 
           <!-- Registration Fields -->
           <template v-if="!isLogin">
-            <div class="form-group">
-              <label for="username">{{ $t('auth.displayNameLabel') }}</label>
-              <input 
-                type="text" 
-                id="username" 
-                v-model="username" 
-                required 
-                :placeholder="t('auth.displayNamePlaceholder')" 
-                />
-            </div>
+            <BaseInput
+              type="text"
+              id="username"
+              v-model="username"
+              required
+              :label="$t('auth.displayNameLabel')"
+              :placeholder="t('auth.displayNamePlaceholder')"
+            />
 
-            <div class="form-group">
-              <label for="payment-link">{{ $t('auth.paymentLinkLabel') }}</label>
-              <input 
-                type="url" 
-                id="payment-link" 
-                v-model="paymentLink" 
-                :placeholder="t('auth.paymentLinkPlaceholder')" 
-                />
-              <span class="field-hint">{{ $t('auth.paymentLinkHint') }}</span>
-            </div>
+            <BaseInput
+              type="url"
+              id="payment-link"
+              v-model="paymentLink"
+              :label="$t('auth.paymentLinkLabel')"
+              :placeholder="t('auth.paymentLinkPlaceholder')"
+            />
+            <span class="field-hint" style="margin-top: -14px; margin-bottom: 20px;">{{ $t('auth.paymentLinkHint') }}</span>
           </template>
 
-          <button type="submit" class="btn btn-primary auth-submit" :disabled="isLoading">
-            <span v-if="isLoading" class="spinner"></span>
+          <BaseButton type="submit" variant="primary" class="auth-submit" :loading="isLoading">
             <span>{{ isLogin ? $t('auth.signInBtn') : $t('auth.signUpBtn') }}</span>
-          </button>
+          </BaseButton>
         </form>
 
         <div class="auth-footer">
@@ -177,7 +170,7 @@ const goToLoginAfterSignUp = () => {
           </p>
         </div>
       </template>
-    </div>
+    </BaseCard>
   </div>
 </template>
 

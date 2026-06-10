@@ -4,6 +4,10 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { state, actions } from '../store'
 import { supabase } from '../supabase'
+import BaseButton from './ui/BaseButton.vue'
+import BaseCard from './ui/BaseCard.vue'
+import BaseInput from './ui/BaseInput.vue'
+import ErrorBanner from './ui/ErrorBanner.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -76,7 +80,7 @@ const handleLogout = async () => {
 
 <template>
   <div class="settings-page">
-    <div class="settings-container glass-panel">
+    <BaseCard class="settings-container">
       <!-- Header -->
       <div class="settings-header">
         <h2>{{ $t('settings.profileSettings') }}</h2>
@@ -129,89 +133,77 @@ const handleLogout = async () => {
 
       <!-- Profile Edit Form -->
       <form @submit.prevent="handleUpdate" class="settings-form">
-        <div v-if="errorMsg" class="error-banner">
-          {{ errorMsg }}
-        </div>
+        <ErrorBanner v-if="errorMsg" :error="errorMsg" />
         <div v-if="successMsg" class="success-banner">
           {{ successMsg }}
         </div>
 
-        <div class="form-group">
-          <label for="email">{{ $t('settings.emailLabel') }}</label>
-          <input 
-            type="email" 
-            id="email" 
-            :value="state.session?.user?.email" 
-            disabled 
-            class="disabled-input"
-          />
-          <span class="field-hint">{{ $t('settings.emailHint') }}</span>
-        </div>
+        <BaseInput
+          type="email"
+          id="email"
+          :modelValue="state.session?.user?.email"
+          disabled
+          class="disabled-input"
+          :label="$t('settings.emailLabel')"
+        />
+        <span class="field-hint" style="margin-top: -14px; margin-bottom: 20px;">{{ $t('settings.emailHint') }}</span>
 
-        <div class="form-group">
-          <label for="username">{{ $t('settings.displayNameLabel') }}</label>
-          <input 
-            type="text" 
-            id="username" 
-            v-model="username" 
-            required 
-            :placeholder="t('settings.displayNamePlaceholder')"
-          />
-        </div>
+        <BaseInput
+          type="text"
+          id="username"
+          v-model="username"
+          required
+          :label="$t('settings.displayNameLabel')"
+          :placeholder="t('settings.displayNamePlaceholder')"
+        />
 
-        <div class="form-group">
-          <label for="payment-link">{{ $t('settings.paymentLinkLabel') }}</label>
-          <input 
-            type="url" 
-            id="payment-link" 
-            v-model="paymentLink" 
-            :placeholder="t('settings.paymentLinkPlaceholder')"
-          />
-          <span class="field-hint">{{ $t('settings.paymentLinkHintSettings') }}</span>
-        </div>
+        <BaseInput
+          type="url"
+          id="payment-link"
+          v-model="paymentLink"
+          :label="$t('settings.paymentLinkLabel')"
+          :placeholder="t('settings.paymentLinkPlaceholder')"
+        />
+        <span class="field-hint" style="margin-top: -14px; margin-bottom: 20px;">{{ $t('settings.paymentLinkHintSettings') }}</span>
 
-        <div class="form-group">
-          <label for="phone-number">{{ $t('settings.phoneNumberLabel') }}</label>
-          <input 
-            type="text" 
-            id="phone-number" 
-            v-model="phoneNumber" 
-            :placeholder="t('settings.phoneNumberPlaceholder')"
-          />
-          <span class="field-hint">{{ $t('settings.phoneNumberHint') }}</span>
-        </div>
+        <BaseInput
+          type="text"
+          id="phone-number"
+          v-model="phoneNumber"
+          :label="$t('settings.phoneNumberLabel')"
+          :placeholder="t('settings.phoneNumberPlaceholder')"
+        />
+        <span class="field-hint" style="margin-top: -14px; margin-bottom: 20px;">{{ $t('settings.phoneNumberHint') }}</span>
 
-        <div class="form-group">
-          <label for="iban">{{ $t('settings.ibanLabel') }}</label>
-          <input 
-            type="text" 
-            id="iban" 
-            v-model="iban" 
-            :placeholder="t('settings.ibanPlaceholder')"
-          />
-          <span class="field-hint">{{ $t('settings.ibanHint') }}</span>
-        </div>
+        <BaseInput
+          type="text"
+          id="iban"
+          v-model="iban"
+          :label="$t('settings.ibanLabel')"
+          :placeholder="t('settings.ibanPlaceholder')"
+        />
+        <span class="field-hint" style="margin-top: -14px; margin-bottom: 20px;">{{ $t('settings.ibanHint') }}</span>
 
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary" :disabled="isSaving">
+          <BaseButton type="submit" variant="primary" :loading="isSaving">
             {{ $t('settings.saveChanges') }}
-          </button>
+          </BaseButton>
           
-          <router-link 
+          <BaseButton 
             v-if="state.isAdmin" 
             to="/admin" 
-            class="btn btn-secondary"
+            variant="secondary"
             style="border-color: rgba(139, 92, 246, 0.3); color: var(--accent-purple);"
           >
             {{ $t('settings.adminPanel') }}
-          </router-link>
+          </BaseButton>
 
-          <button type="button" @click="handleLogout" class="btn btn-danger">
+          <BaseButton type="button" @click="handleLogout" variant="secondary" style="border-color: rgba(239, 68, 68, 0.3); color: var(--color-danger);">
             {{ $t('settings.signOut') }}
-          </button>
+          </BaseButton>
         </div>
       </form>
-    </div>
+    </BaseCard>
   </div>
 </template>
 

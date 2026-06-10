@@ -4,6 +4,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { supabase } from '../supabase'
 import { state, actions } from '../store'
+import BaseButton from './ui/BaseButton.vue'
+import BaseCard from './ui/BaseCard.vue'
+import ErrorBanner from './ui/ErrorBanner.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -82,7 +85,7 @@ const handleJoin = async () => {
     <div class="glow-sphere purple"></div>
     <div class="glow-sphere cyan"></div>
 
-    <div class="join-card glass-panel">
+    <BaseCard class="join-card">
       <!-- Loading state -->
       <div v-if="isLoading" class="loading-state">
         <span class="spinner"></span>
@@ -90,13 +93,11 @@ const handleJoin = async () => {
       </div>
 
       <!-- Error state -->
-      <div v-else-if="errorMsg" class="error-state">
-        <div class="error-icon">⚠️</div>
-        <h3>{{ errorMsg }}</h3>
-        <router-link to="/" class="btn btn-secondary" style="margin-top: 24px; width: 100%;">
+      <ErrorBanner v-else-if="errorMsg" :error="errorMsg" global>
+        <BaseButton to="/" variant="secondary" style="margin-top: 24px; width: 100%;">
           &larr; {{ $t('common.backToDashboard') }}
-        </router-link>
-      </div>
+        </BaseButton>
+      </ErrorBanner>
 
       <!-- Ready to join -->
       <div v-else class="join-content">
@@ -111,21 +112,20 @@ const handleJoin = async () => {
         </div>
 
         <div class="join-actions">
-          <button 
+          <BaseButton 
             @click="handleJoin" 
-            class="btn btn-primary join-submit" 
-            :disabled="isJoining"
+            variant="primary" class="join-submit" 
+            :loading="isJoining"
           >
-            <span v-if="isJoining" class="spinner"></span>
-            <span>{{ $t('group.joinConfirmBtn') || 'Rejoindre le groupe' }}</span>
-          </button>
+            {{ $t('group.joinConfirmBtn') || 'Rejoindre le groupe' }}
+          </BaseButton>
           
-          <router-link to="/" class="btn btn-secondary cancel-btn">
+          <BaseButton to="/" variant="secondary" class="cancel-btn">
             {{ $t('common.cancel') }}
-          </router-link>
+          </BaseButton>
         </div>
       </div>
-    </div>
+    </BaseCard>
   </div>
 </template>
 

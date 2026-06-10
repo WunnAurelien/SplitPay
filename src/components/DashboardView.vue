@@ -3,6 +3,11 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { state, userGlobalStats, calculateSettlements, getTableExpenses, actions } from '../store'
 import { supabase } from '../supabase'
+import BaseButton from './ui/BaseButton.vue'
+import BaseModal from './ui/BaseModal.vue'
+import BaseCard from './ui/BaseCard.vue'
+import BaseInput from './ui/BaseInput.vue'
+import ErrorBanner from './ui/ErrorBanner.vue'
 
 const { t, locale } = useI18n()
 const newGroupName = ref('')
@@ -99,42 +104,42 @@ const handleBackdropClick = (event) => {
         <h1>{{ $t('dashboard.welcome', { name: state.profile?.username }) }}</h1>
         <p class="subtitle">{{ $t('dashboard.subtitle') }}</p>
       </div>
-      <button @click="openCreateModal" class="btn btn-primary">
+      <BaseButton @click="openCreateModal" variant="primary">
         <span class="plus-icon">+</span> {{ $t('dashboard.createGroupBtn') }}
-      </button>
+      </BaseButton>
     </div>
 
     <!-- Stats Summary Grid -->
     <div class="stat-grid">
-      <div class="stat-card glass-panel">
+      <BaseCard class="stat-card">
         <span class="stat-label">{{ $t('dashboard.owedToMe') }}</span>
         <span class="stat-value positive">{{ formatEuro(userGlobalStats.netOwedToMe) }}</span>
-      </div>
-      <div class="stat-card glass-panel">
+      </BaseCard>
+      <BaseCard class="stat-card">
         <span class="stat-label">{{ $t('dashboard.iOwe') }}</span>
         <span class="stat-value negative">{{ formatEuro(userGlobalStats.netIOwe) }}</span>
-      </div>
-      <div class="stat-card glass-panel">
+      </BaseCard>
+      <BaseCard class="stat-card">
         <span class="stat-label">{{ $t('dashboard.activeGroups') }}</span>
         <span class="stat-value">{{ userGlobalStats.activeGroupsCount }}</span>
-      </div>
+      </BaseCard>
     </div>
 
     <!-- Groups Grid -->
     <h2 class="section-title">{{ $t('dashboard.yourGroups') }}</h2>
 
-    <div v-if="state.groups.length === 0" class="empty-state glass-panel">
+    <BaseCard v-if="state.groups.length === 0" class="empty-state">
       <div class="empty-state-icon">💸</div>
       <h3>{{ $t('dashboard.noGroupsTitle') }}</h3>
       <p>{{ $t('dashboard.noGroupsDesc') }}</p>
-      <button @click="openCreateModal" class="btn btn-secondary" style="margin-top: 15px;">
+      <BaseButton @click="openCreateModal" variant="secondary" style="margin-top: 15px;">
         {{ $t('dashboard.createFirstGroup') }}
-      </button>
-    </div>
+      </BaseButton>
+    </BaseCard>
 
     <div v-else class="groups-grid">
-      <router-link v-for="group in state.groups" :key="group.id" :to="`/group/${group.id}`"
-        class="group-card glass-panel interactive">
+      <BaseCard v-for="group in state.groups" :key="group.id" :to="`/group/${group.id}`"
+        class="group-card" interactive>
         <div class="group-info">
           <h3>{{ group.name }}</h3>
           <p class="member-count">
@@ -146,39 +151,36 @@ const handleBackdropClick = (event) => {
         <div class="group-balance" :class="getGroupBalanceText(group).class">
           {{ getGroupBalanceText(group).text }}
         </div>
-      </router-link>
+      </BaseCard>
     </div>
 
     <!-- Create Group Modal Dialog -->
-    <dialog ref="createGroupDialog" closedby="any" @click="handleBackdropClick" aria-labelledby="dialog-title">
-      <div class="dialog-content">
-        <div class="dialog-header">
-          <h2 id="dialog-title">{{ $t('dashboard.createGroupTitle') }}</h2>
-          <button @click="closeCreateModal" class="dialog-close">&times;</button>
+    <BaseModal 
+      ref="createGroupDialog" 
+      :title="$t('dashboard.createGroupTitle')"
+      @close="closeCreateModal"
+    >
+      <form @submit.prevent="handleCreateGroup">
+        <ErrorBanner v-if="errorMsg" :error="errorMsg" />
+
+        <BaseInput 
+          id="group-name" 
+          v-model="newGroupName" 
+          required
+          :label="$t('dashboard.groupNameLabel')"
+          :placeholder="t('dashboard.groupNamePlaceholder')" 
+        />
+
+        <div class="dialog-actions" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+          <BaseButton type="button" @click="closeCreateModal" variant="secondary" size="sm">
+            {{ $t('common.cancel') }}
+          </BaseButton>
+          <BaseButton type="submit" variant="primary" size="sm" :loading="isLoading">
+            {{ $t('dashboard.createGroupSubmit') }}
+          </BaseButton>
         </div>
-
-        <form @submit.prevent="handleCreateGroup">
-          <div v-if="errorMsg" class="error-banner">
-            {{ errorMsg }}
-          </div>
-
-          <div class="form-group">
-            <label for="group-name">{{ $t('dashboard.groupNameLabel') }}</label>
-            <input type="text" id="group-name" v-model="newGroupName" required
-              :placeholder="t('dashboard.groupNamePlaceholder')" />
-          </div>
-
-          <div class="dialog-actions" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
-            <button type="button" @click="closeCreateModal" class="btn btn-secondary btn-sm">
-              {{ $t('common.cancel') }}
-            </button>
-            <button type="submit" class="btn btn-primary btn-sm" :disabled="isLoading">
-              {{ $t('dashboard.createGroupSubmit') }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
+      </form>
+    </BaseModal>
   </div>
 </template>
 

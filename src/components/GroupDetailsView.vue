@@ -430,7 +430,7 @@ const handleBackdropClick = (dialog, event) => {
         <router-link to="/" class="text-sm font-semibold text-base-content/70">&larr; {{ $t('common.backToDashboard') }}</router-link>
         <h1 class="text-2xl font-semibold mt-2">{{ state.activeGroup.name }}</h1>
       </div>
-      <div class="flex items-center gap-3 w-full sm:w-auto">
+      <div class="grid grid-cols-2 gap-3 w-full sm:w-auto sm:min-w-[300px]">
         <BaseButton @click="copyInviteLink" variant="secondary" size="sm" :class="inviteCopied ? 'bg-success/10 border-success/20 shadow' : ''">
           {{ inviteCopied ? $t('group.inviteCopied') : $t('group.inviteBtn') }}
         </BaseButton>

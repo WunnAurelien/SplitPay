@@ -40,11 +40,13 @@ const handleRefresh = async () => {
 
 <template>
   <PullToRefresh :loading="state.loading" :on-refresh="handleRefresh">
-  <div class="py-8">
-    <div class="mb-6">
-      <router-link to="/" class="text-sm font-semibold text-base-content/70">&larr; {{ $t('common.backToDashboard') }}</router-link>
-      <h1 class="text-2xl font-semibold mt-2">{{ $t('admin.adminPanelTitle') }}</h1>
-      <p class="text-sm text-base-content/70">{{ $t('admin.adminPanelSubtitle') }}</p>
+  <div class="py-6 sm:py-8">
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <router-link to="/" class="text-sm font-semibold text-base-content/70 inline-flex items-center gap-1 hover:text-base-content">&larr; {{ $t('common.backToDashboard') }}</router-link>
+        <h1 class="text-2xl font-semibold mt-2">{{ $t('admin.adminPanelTitle') }}</h1>
+        <p class="text-sm text-base-content/70">{{ $t('admin.adminPanelSubtitle') }}</p>
+      </div>
     </div>
 
     <!-- Error Banner -->

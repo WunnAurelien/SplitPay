@@ -87,12 +87,14 @@ const handleLogout = async () => {
 
 <template>
   <PullToRefresh :loading="false" :on-refresh="handleRefresh">
-  <div class="py-8 flex justify-center">
+  <div class="flex justify-center py-6 sm:py-8">
     <BaseCard class="w-full max-w-2xl p-6">
       <!-- Header -->
-      <div class="mb-4">
-        <h2 class="text-2xl font-semibold">{{ $t('settings.profileSettings') }}</h2>
-        <p class="text-sm text-base-content/70">{{ $t('settings.profileSettingsSubtitle') }}</p>
+      <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-semibold">{{ $t('settings.profileSettings') }}</h2>
+          <p class="text-sm text-base-content/70">{{ $t('settings.profileSettingsSubtitle') }}</p>
+        </div>
       </div>
 
       <!-- Account Approval Status -->

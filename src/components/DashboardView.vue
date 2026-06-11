@@ -105,16 +105,16 @@ const handleBackdropClick = (event) => {
 
 <template>
   <PullToRefresh :loading="state.loading" :on-refresh="handleRefresh">
-  <div class="space-y-6">
+  <div class="space-y-4 sm:space-y-6">
     <!-- Header Greeting -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
       <div>
-        <h1 class="text-2xl font-semibold">{{ $t('dashboard.welcome', { name: state.profile?.username }) }}</h1>
-        <p class="text-sm text-base-content/70">{{ $t('dashboard.subtitle') }}</p>
+        <h1 class="text-xl sm:text-2xl font-semibold">{{ $t('dashboard.welcome', { name: state.profile?.username }) }}</h1>
+        <p class="text-xs sm:text-sm text-base-content/70">{{ $t('dashboard.subtitle') }}</p>
       </div>
-      <BaseButton @click="openCreateModal" variant="primary">
-        <span class="inline-flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <BaseButton @click="openCreateModal" variant="primary" class="sm:shrink-0 text-sm sm:text-base">
+        <span class="inline-flex items-center gap-1.5 sm:gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
           {{ $t('dashboard.createGroupBtn') }}
@@ -122,46 +122,79 @@ const handleBackdropClick = (event) => {
       </BaseButton>
     </div>
 
-    <!-- Stats Summary Grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <BaseCard class="p-4">
-        <div class="text-sm text-base-content/70">{{ $t('dashboard.owedToMe') }}</div>
-        <div class="text-2xl font-bold text-success">{{ formatEuro(userGlobalStats.netOwedToMe) }}</div>
+    <!-- Groups Grid - Prioritized (no scroll needed) -->
+    <div>
+      <h2 class="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">{{ $t('dashboard.yourGroups') }}</h2>
+
+      <BaseCard v-if="state.groups.length === 0" class="p-6 sm:p-8 md:p-12 text-center bg-gradient-to-br from-base-300/20 to-base-300/5 border-2 border-base-300/30">
+        <div class="text-4xl sm:text-5xl md:text-6xl mb-4 sm:mb-6">💸</div>
+        <h3 class="text-lg sm:text-xl md:text-2xl font-semibold mb-2 sm:mb-3">{{ $t('dashboard.noGroupsTitle') }}</h3>
+        <p class="text-xs sm:text-sm md:text-base text-base-content/70 mb-6 sm:mb-8">{{ $t('dashboard.noGroupsDesc') }}</p>
+        <BaseButton @click="openCreateModal" variant="primary" class="text-sm sm:text-base">
+          <span class="inline-flex items-center gap-1.5 sm:gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            {{ $t('dashboard.createFirstGroup') }}
+          </span>
+        </BaseButton>
       </BaseCard>
-      <BaseCard class="p-4">
-        <div class="text-sm text-base-content/70">{{ $t('dashboard.iOwe') }}</div>
-        <div class="text-2xl font-bold text-error">{{ formatEuro(userGlobalStats.netIOwe) }}</div>
-      </BaseCard>
-      <BaseCard class="p-4">
-        <div class="text-sm text-base-content/70">{{ $t('dashboard.activeGroups') }}</div>
-        <div class="text-2xl font-bold">{{ userGlobalStats.activeGroupsCount }}</div>
-      </BaseCard>
+
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
+        <BaseCard v-for="group in state.groups" :key="group.id" :to="`/group/${group.id}`" interactive class="p-3 sm:p-5 flex flex-col justify-between gap-3 hover:shadow-lg hover:border-primary/50 transition-all border border-base-300/30">
+          <div class="flex justify-between items-start gap-2">
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base sm:text-lg font-semibold truncate">{{ group.name }}</h3>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 sm:h-5 sm:w-5 text-primary/60 shrink-0 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </div>
+          <div class="flex items-center justify-between pt-2 border-t border-base-300/20">
+            <span class="text-xs uppercase tracking-wide text-base-content/50">Balance</span>
+            <div :class="getGroupBalanceText(group).class === 'owed' ? 'text-success font-semibold' : getGroupBalanceText(group).class === 'owe' ? 'text-error font-semibold' : 'text-base-content/70 font-semibold'">
+              {{ getGroupBalanceText(group).text }}
+            </div>
+          </div>
+        </BaseCard>
+      </div>
     </div>
 
-    <!-- Groups Grid -->
-    <h2 class="text-xl font-semibold">{{ $t('dashboard.yourGroups') }}</h2>
-
-    <BaseCard v-if="state.groups.length === 0" class="p-6 text-center">
-      <div class="text-4xl mb-4">💸</div>
-      <h3 class="text-lg font-semibold">{{ $t('dashboard.noGroupsTitle') }}</h3>
-      <p class="text-sm text-base-content/70">{{ $t('dashboard.noGroupsDesc') }}</p>
-      <BaseButton @click="openCreateModal" variant="secondary" class="mt-4">
-        {{ $t('dashboard.createFirstGroup') }}
-      </BaseButton>
-    </BaseCard>
-
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-      <BaseCard v-for="group in state.groups" :key="group.id" :to="`/group/${group.id}`" interactive class="p-4 flex justify-between items-center">
-        <div>
-          <h3 class="text-lg font-semibold">{{ group.name }}</h3>
-          <p class="text-sm text-base-content/70">
-            {{ $t('dashboard.memberCount', group.group_members?.length || 0, { count: group.group_members?.length || 0 }) }}
-          </p>
-        </div>
-        <div :class="getGroupBalanceText(group).class === 'owed' ? 'text-success font-semibold' : getGroupBalanceText(group).class === 'owe' ? 'text-error font-semibold' : 'text-base-content/70 font-semibold'">
-          {{ getGroupBalanceText(group).text }}
-        </div>
-      </BaseCard>
+    <!-- Stats Summary Grid - Secondary Info Below -->
+    <div class="pt-3 sm:pt-4">
+      <h3 class="text-xs sm:text-sm font-semibold text-base-content/70 uppercase tracking-wide mb-3">{{ $t('dashboard.overview') }}</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <BaseCard class="p-3 sm:p-5 border border-success/20 bg-success/5 hover:border-success/40 transition-colors">
+          <div class="flex items-center justify-between mb-2 sm:mb-3">
+            <div class="text-xs sm:text-sm text-base-content/70 font-medium">{{ $t('dashboard.owedToMe') }}</div>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 sm:h-5 sm:w-5 text-success/60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v20M2 12h20" />
+            </svg>
+          </div>
+          <div class="text-2xl sm:text-3xl font-bold text-success">{{ formatEuro(userGlobalStats.netOwedToMe) }}</div>
+        </BaseCard>
+        <BaseCard class="p-3 sm:p-5 border border-error/20 bg-error/5 hover:border-error/40 transition-colors">
+          <div class="flex items-center justify-between mb-2 sm:mb-3">
+            <div class="text-xs sm:text-sm text-base-content/70 font-medium">{{ $t('dashboard.iOwe') }}</div>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 sm:h-5 sm:w-5 text-error/60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </div>
+          <div class="text-2xl sm:text-3xl font-bold text-error">{{ formatEuro(userGlobalStats.netIOwe) }}</div>
+        </BaseCard>
+        <BaseCard class="p-3 sm:p-5 border border-primary/20 bg-primary/5 hover:border-primary/40 transition-colors">
+          <div class="flex items-center justify-between mb-2 sm:mb-3">
+            <div class="text-xs sm:text-sm text-base-content/70 font-medium">{{ $t('dashboard.activeGroups') }}</div>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 sm:h-5 sm:w-5 text-primary/60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <div class="text-2xl sm:text-3xl font-bold text-primary">{{ userGlobalStats.activeGroupsCount }}</div>
+        </BaseCard>
+      </div>
     </div>
 
     <!-- Create Group Modal Dialog -->

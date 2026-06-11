@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { state, isApproved, actions } from './store'
 import { useSupabase } from './supabase'
+import { isRunningAsPWA } from './usePWA'
 import BaseButton from './components/ui/BaseButton.vue'
 import BaseModal from './components/ui/BaseModal.vue'
 import ErrorBanner from './components/ui/ErrorBanner.vue'
@@ -68,6 +69,11 @@ watch(locale, (newLocale) => {
 }, { immediate: true })
 
 onMounted(async () => {
+  // Applique la classe CSS 'is-pwa' sur <html> pour les sélecteurs globaux
+  if (isRunningAsPWA()) {
+    document.documentElement.classList.add('is-pwa')
+  }
+
   // Détection du hash recovery AVANT Vue Router ne le consomme
   // Le SDK Supabase parse le hash fragment et établit la session automatiquement
   const fullHash = window.location.hash

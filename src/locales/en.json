@@ -8,7 +8,10 @@
     "confirm": "Confirm",
     "backToDashboard": "Back to Dashboard",
     "errorConfig": "Configuration / Connection Error",
-    "errorResolution": "Please check your .env settings and API key variables."
+    "errorResolution": "Please check your .env settings and API key variables.",
+    "pullToRefresh": "Pull to refresh",
+    "releaseToRefresh": "Release to refresh",
+    "refreshing": "Refreshing..."
   },
   "app": {
     "dashboard": "Dashboard",

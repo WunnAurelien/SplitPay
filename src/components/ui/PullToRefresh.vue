@@ -1,5 +1,6 @@
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref } from 'vue'
+import { isRunningAsPWA } from '../../usePWA'
 
 const props = defineProps({
   onRefresh: {
@@ -13,16 +14,11 @@ const props = defineProps({
   threshold: {
     type: Number,
     default: 60
-  },
-  /** Optional: container element to track scroll on. Defaults to window. */
-  scrollTarget: {
-    type: Object,
-    default: null
   }
 })
 
 const pullDistance = ref(0)
-const pullState = ref('idle') // 'idle' | 'pulling' | 'threshold' | 'loading'
+const pullState = ref('idle')
 const containerRef = ref(null)
 
 const maxPullDistance = 100
@@ -31,19 +27,32 @@ const resistanceFactor = 2.5
 let startY = 0
 let isPulling = false
 let isTouchActive = false
+let hasScrolledFromTop = false
 
-const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+const isPWA = isRunningAsPWA()
+
+const preventBodyScroll = () => {
+  document.body.style.overflow = 'hidden'
+  document.body.style.position = 'relative'
+}
+
+const allowBodyScroll = () => {
+  document.body.style.overflow = ''
+  document.body.style.position = ''
+}
 
 const onTouchStart = (e) => {
-  const scrollEl = props.scrollTarget || window
-  const scrollTop = props.scrollTarget
-    ? props.scrollTarget.scrollTop
-    : window.scrollY || document.documentElement.scrollTop
+  // Never activate while already loading
+  if (pullState.value === 'loading') return
+
+  const scrollTop = window.scrollY || document.documentElement.scrollTop
 
   // Only activate when at the very top of the scroll
-  if (scrollTop > 0) return
-  // Don't activate while already loading
-  if (pullState.value === 'loading') return
+  if (scrollTop > 0) {
+    hasScrolledFromTop = true
+    return
+  }
+  hasScrolledFromTop = false
 
   startY = e.touches[0].clientY
   isPulling = true
@@ -66,11 +75,22 @@ const onTouchMove = (e) => {
   const resisted = Math.min(diff / resistanceFactor, maxPullDistance)
   pullDistance.value = resisted
 
+  // Lock body scroll during pull to prevent scrollbar from appearing
+  preventBodyScroll()
+
   if (resisted >= props.threshold) {
     pullState.value = 'threshold'
   } else {
     pullState.value = 'pulling'
   }
+}
+
+const resetPull = () => {
+  pullDistance.value = 0
+  pullState.value = 'idle'
+  isPulling = false
+  isTouchActive = false
+  allowBodyScroll()
 }
 
 const onTouchEnd = async () => {
@@ -90,23 +110,18 @@ const onTouchEnd = async () => {
     } finally {
       // Reset after a short delay for smooth transition
       setTimeout(() => {
-        pullDistance.value = 0
-        pullState.value = 'idle'
+        resetPull()
       }, 300)
     }
   } else {
     // Snap back
-    pullDistance.value = 0
-    pullState.value = 'idle'
+    resetPull()
   }
 }
 
 const onTouchCancel = () => {
   if (!isPulling) return
-  isPulling = false
-  isTouchActive = false
-  pullDistance.value = 0
-  pullState.value = 'idle'
+  resetPull()
 }
 
 // Expose a programmatic refresh trigger for parent usage
@@ -120,8 +135,7 @@ const triggerRefresh = async () => {
     console.error('[PullToRefresh] Programmatic refresh failed:', e)
   } finally {
     setTimeout(() => {
-      pullDistance.value = 0
-      pullState.value = 'idle'
+      resetPull()
     }, 300)
   }
 }
@@ -133,8 +147,9 @@ defineExpose({ triggerRefresh })
   <div
     ref="containerRef"
     class="pull-to-refresh-container"
-    @touchstart.prevent="onTouchStart"
-    @touchmove.prevent="onTouchMove"
+    :class="{ 'is-pwa': isPWA }"
+    @touchstart="onTouchStart"
+    @touchmove="onTouchMove"
     @touchend="onTouchEnd"
     @touchcancel="onTouchCancel"
   >
@@ -144,8 +159,7 @@ defineExpose({ triggerRefresh })
       class="pull-indicator"
       :style="{
         height: pullDistance + 'px',
-        opacity: Math.min(pullDistance / threshold, 1),
-        transform: `translateY(${pullDistance}px)`
+        opacity: Math.min(pullDistance / threshold, 1)
       }"
     >
       <div class="pull-indicator-content">
@@ -177,7 +191,13 @@ defineExpose({ triggerRefresh })
     </div>
 
     <!-- Slot for the actual page content -->
-    <div class="pull-content" :style="{ transform: `translateY(${pullDistance}px)`, transition: isTouchActive ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }">
+    <div
+      class="pull-content"
+      :style="{
+        transform: `translateY(${pullDistance}px)`,
+        transition: isTouchActive ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+      }"
+    >
       <slot />
     </div>
   </div>
@@ -186,10 +206,23 @@ defineExpose({ triggerRefresh })
 <style scoped>
 .pull-to-refresh-container {
   position: relative;
-  overflow: visible;
-  /* Prevent browser's native pull-to-refresh in non-standalone mode */
+  /* Clip overflow during pull to prevent scrollbar when content is translated */
+  overflow: clip;
+}
+
+/*
+ * In PWA mode (standalone): no native pull-to-refresh exists,
+ * so we use `overscroll-behavior: auto` to let Safari scroll freely.
+ * In browser mode: we block native overscroll to avoid dual pull-to-refresh.
+ */
+.pull-to-refresh-container:not(.is-pwa) {
   overscroll-behavior: contain;
-  touch-action: pan-x;
+  touch-action: pan-y;
+}
+
+.pull-to-refresh-container.is-pwa {
+  overscroll-behavior: auto;
+  touch-action: pan-y;
 }
 
 .pull-indicator {
@@ -201,7 +234,7 @@ defineExpose({ triggerRefresh })
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
   z-index: 10;
   transition: opacity 0.2s ease, height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -220,6 +253,7 @@ defineExpose({ triggerRefresh })
   font-size: 0.8rem;
   font-weight: 600;
   box-shadow: var(--glass-shadow);
+  margin-top: 12px;
 }
 
 .pull-spinner {
@@ -250,5 +284,8 @@ defineExpose({ triggerRefresh })
 
 .pull-content {
   will-change: transform;
+  position: relative;
+  z-index: 1;
+  background: var(--bg-primary);
 }
 </style>

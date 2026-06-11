@@ -4,7 +4,8 @@ on:
   # Déclenche le workflow à chaque push sur la branche main (ou master)
   push:
     branches:
-      - main 
+      - main
+      - develop
 
 # Permissions nécessaires pour déployer sur GitHub Pages
 permissions:

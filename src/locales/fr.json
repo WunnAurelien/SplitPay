@@ -8,7 +8,10 @@
     "confirm": "Confirmer",
     "backToDashboard": "Retour au tableau de bord",
     "errorConfig": "Erreur de configuration / connexion",
-    "errorResolution": "Veuillez vérifier vos paramètres .env et vos variables de clé API."
+    "errorResolution": "Veuillez vérifier vos paramètres .env et vos variables de clé API.",
+    "pullToRefresh": "Tirez pour rafraîchir",
+    "releaseToRefresh": "Relâchez pour rafraîchir",
+    "refreshing": "Chargement..."
   },
   "app": {
     "dashboard": "Tableau de bord",

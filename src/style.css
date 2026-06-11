@@ -90,6 +90,26 @@ html, body {
   touch-action: manipulation;
 }
 
+/* PWA mode: lock document scrolling, make <main> the scroll container */
+html.is-pwa {
+  overflow: hidden;
+  height: 100%;
+  height: 100dvh;
+}
+
+html.is-pwa body {
+  overflow: hidden;
+  height: 100dvh;
+}
+
+html.is-pwa main {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 body {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--bg-primary);

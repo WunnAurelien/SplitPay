@@ -432,6 +432,86 @@ if (!useMock) {
       }
     },
 
+    async rpc(funcName, args = {}) {
+      const getTable = (name) => JSON.parse(localStorage.getItem(`splitpay_${name}`) || '[]');
+      const saveTable = (name, data) => localStorage.setItem(`splitpay_${name}`, JSON.stringify(data));
+
+      if (funcName === 'setup_admin_if_needed') {
+        const configs = getTable('app_config');
+        let adminConfig = configs.find(c => c.key === 'admin_uuid');
+        const currentUserId = currentSession?.user?.id;
+        
+        if (!currentUserId) {
+          return { data: null, error: { message: 'Not authenticated.' } };
+        }
+
+        if (!adminConfig) {
+          adminConfig = {
+            key: 'admin_uuid',
+            value: currentUserId,
+            created_at: new Date().toISOString()
+          };
+          configs.push(adminConfig);
+          saveTable('app_config', configs);
+
+          // Auto-approve the admin profile
+          const profiles = getTable('profiles');
+          const updated = profiles.map(p => p.id === currentUserId ? { ...p, status: 'approved' } : p);
+          saveTable('profiles', updated);
+        }
+
+        const profiles = getTable('profiles');
+        const callerProfile = profiles.find(p => p.id === currentUserId);
+
+        return {
+          data: {
+            is_admin: adminConfig.value === currentUserId,
+            status: callerProfile?.status || 'unknown',
+            admin_uuid: adminConfig.value
+          },
+          error: null
+        };
+      }
+
+      if (funcName === 'delete_user_by_admin') {
+        const targetUserId = args.user_id;
+        const currentUserId = currentSession?.user?.id;
+        if (!currentUserId) {
+          return { data: null, error: { message: 'Not authenticated.' } };
+        }
+
+        const configs = getTable('app_config');
+        const adminConfig = configs.find(c => c.key === 'admin_uuid');
+        if (!adminConfig || adminConfig.value !== currentUserId) {
+          return { data: { error: 'Only the administrator can delete users.' }, error: null };
+        }
+
+        if (currentUserId === targetUserId) {
+          return { data: { error: 'You cannot delete yourself.' }, error: null };
+        }
+
+        // Delete from users
+        const users = getTable('users');
+        saveTable('users', users.filter(u => u.id !== targetUserId));
+
+        // Delete from profiles
+        const profiles = getTable('profiles');
+        saveTable('profiles', profiles.filter(p => p.id !== targetUserId));
+
+        // Delete from group_members
+        const memberships = getTable('group_members');
+        saveTable('group_members', memberships.filter(m => m.profile_id !== targetUserId));
+
+        // Delete from expense_beneficiaries
+        const beneficiaries = getTable('expense_beneficiaries');
+        saveTable('expense_beneficiaries', beneficiaries.filter(b => b.profile_id !== targetUserId));
+
+        return { data: { success: true }, error: null };
+      }
+
+      return { data: null, error: { message: `RPC function ${funcName} not mocked.` } };
+    },
+
     from(table) {
       return new MockQueryBuilder(table);
     }

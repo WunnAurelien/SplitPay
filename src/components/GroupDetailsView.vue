@@ -25,6 +25,13 @@ const { t, locale } = useI18n()
 const addExpenseDialog = ref(null)
 const addMemberDialog = ref(null)
 const settleUpDialog = ref(null)
+const noteDialog = ref(null)
+
+// Member Note State
+const selectedNoteMember = ref(null)
+const memberNote = ref('')
+const isNoteLoading = ref(false)
+const noteError = ref('')
 
 // Settle Up Modal State
 const activeSettleTx = ref(null)
@@ -196,6 +203,33 @@ const openMemberModal = () => {
 
 const closeMemberModal = () => {
   addMemberDialog.value.close()
+}
+
+const openNoteModal = (member) => {
+  selectedNoteMember.value = member
+  memberNote.value = member.note || ''
+  noteError.value = ''
+  noteDialog.value.showModal()
+}
+
+const closeNoteModal = () => {
+  noteDialog.value.close()
+  selectedNoteMember.value = null
+  memberNote.value = ''
+}
+
+const handleSaveNote = async () => {
+  if (!selectedNoteMember.value) return
+  isNoteLoading.value = true
+  noteError.value = ''
+  try {
+    await actions.updateGroupMemberNote(groupId, selectedNoteMember.value.id, memberNote.value.trim())
+    closeNoteModal()
+  } catch (err) {
+    noteError.value = err.message || t('group.saveNoteError') || 'Impossible d\'enregistrer la note.'
+  } finally {
+    isNoteLoading.value = false
+  }
 }
 
 // Form Handlers
@@ -626,16 +660,30 @@ const handleBackdropClick = (dialog, event) => {
                     }"
                   >
                     {{ getMemberBalance(member.id) > 0 
-                      ? $t('group.balanceCredit', { amount: formatEuro(getMemberBalance(member.id)) })
-                      : $t('group.balanceOwes', { amount: formatEuro(Math.abs(getMemberBalance(member.id))) })
+                       ? $t('group.balanceCredit', { amount: formatEuro(getMemberBalance(member.id)) })
+                       : $t('group.balanceOwes', { amount: formatEuro(Math.abs(getMemberBalance(member.id))) })
                     }}
                   </span>
                   <span v-else class="member-balance balance-zero">
                     {{ $t('group.balanceSettled') }}
                   </span>
+                  <div class="mt-1 flex items-center gap-1.5 text-left">
+                    <button 
+                      @click="openNoteModal(member)"
+                      class="p-0.5 hover:bg-base-300 rounded transition-colors text-base-content/60 hover:text-primary focus:outline-none flex-shrink-0 flex items-center justify-center"
+                      :title="member.note ? $t('group.editNote') : $t('group.addNote')"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                      </svg>
+                    </button>
+                    <span v-if="member.note" class="text-xs text-base-content/60 italic max-w-[150px] truncate" :title="member.note">
+                      {{ member.note }}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div class="member-actions">
+              <div class="member-actions" style="display: flex; gap: 6px; align-items: center;">
                 <button 
                   v-if="canRemoveMember(member.id)"
                   @click="handleRemoveMember(member.id)"
@@ -983,6 +1031,35 @@ const handleBackdropClick = (dialog, event) => {
           </div>
         </form>
       </template>
+    </BaseModal>
+
+    <!-- 4. Edit Member Note Dialog -->
+    <BaseModal 
+      ref="noteDialog" 
+      :title="selectedNoteMember ? $t('group.noteModalTitle', { name: selectedNoteMember.username || selectedNoteMember.email }) : ''"
+      @close="closeNoteModal"
+    >
+      <form @submit.prevent="handleSaveNote">
+        <ErrorBanner v-if="noteError" :error="noteError" />
+
+        <BaseInput 
+          type="textarea"
+          id="member-note-input" 
+          v-model="memberNote" 
+          :label="$t('group.noteLabel')"
+          :placeholder="t('group.notePlaceholder')"
+          rows="3"
+        />
+
+        <div class="dialog-actions" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+          <BaseButton type="button" @click="closeNoteModal" variant="secondary" size="sm">
+            {{ $t('common.cancel') }}
+          </BaseButton>
+          <BaseButton type="submit" variant="primary" size="sm" :loading="isNoteLoading">
+            {{ $t('group.saveNote') }}
+          </BaseButton>
+        </div>
+      </form>
     </BaseModal>
   </div>
   <ErrorBanner v-else-if="state.error" :error="state.error" :title="$t('common.errorConfig')" global>

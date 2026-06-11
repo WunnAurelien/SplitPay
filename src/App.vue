@@ -68,6 +68,57 @@ watch(locale, (newLocale) => {
   document.documentElement.setAttribute('lang', newLocale)
 }, { immediate: true })
 
+watch(isApproved, async (newVal) => {
+  if (newVal) {
+    const pendingJoinGroupId = localStorage.getItem('splitpay_pending_join_group_id')
+    const pendingJoinStatus = localStorage.getItem('splitpay_pending_join_status')
+    
+    if (pendingJoinGroupId && pendingJoinStatus === 'accepted') {
+      localStorage.removeItem('splitpay_pending_join_group_id')
+      localStorage.removeItem('splitpay_pending_join_status')
+      localStorage.removeItem('splitpay_redirect_after_auth')
+      
+      try {
+        const { error } = await supabase
+          .from('group_members')
+          .insert({
+            group_id: pendingJoinGroupId,
+            profile_id: state.session.user.id
+          })
+          
+        if (error) throw error
+        
+        await actions.fetchGroups()
+        
+        const { data: group } = await supabase
+          .from('groups')
+          .select('name')
+          .eq('id', pendingJoinGroupId)
+          .single()
+          
+        const groupName = group?.name || ''
+        
+        await actions.alert({
+          title: t('group.joinedTitle') || 'Groupe rejoint !',
+          message: t('group.joinedSuccessMsg', { name: groupName }) || `Votre compte a été approuvé et vous avez rejoint le groupe "${groupName}".`,
+          okText: t('common.ok') || 'OK'
+        })
+        
+        router.push(`/group/${pendingJoinGroupId}`)
+      } catch (err) {
+        console.error('Error auto-joining group:', err)
+        router.push(`/group/${pendingJoinGroupId}/join`)
+      }
+    } else {
+      const savedRedirect = localStorage.getItem('splitpay_redirect_after_auth')
+      if (savedRedirect) {
+        localStorage.removeItem('splitpay_redirect_after_auth')
+        router.push(savedRedirect)
+      }
+    }
+  }
+})
+
 onMounted(async () => {
   // Applique la classe CSS 'is-pwa' sur <html> pour les sélecteurs globaux
   if (isRunningAsPWA()) {

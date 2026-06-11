@@ -41,6 +41,7 @@ alter table public.groups enable row level security;
 create table if not exists public.group_members (
     group_id uuid references public.groups(id) on delete cascade,
     profile_id uuid references public.profiles(id) on delete cascade,
+    note text,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     primary key (group_id, profile_id)
 );
@@ -246,10 +247,11 @@ create policy "Allow admin full control over profiles"
     using (auth.uid()::text = public.get_admin_uuid());
 
 -- Groups Policies
-create policy "Allow approved users to read groups"
+create policy "Allow authenticated users to read groups"
     on public.groups for select
+    to authenticated
     using (
-        public.is_approved_user(auth.uid())
+        true
     );
 
 create policy "Allow approved users to create groups"
@@ -313,6 +315,17 @@ create policy "Allow members to leave or group creator/admin to remove membershi
             -- Or the admin
             or auth.uid()::text = public.get_admin_uuid()
         )
+    );
+
+create policy "Allow members to update group memberships"
+    on public.group_members for update
+    using (
+        public.is_approved_user(auth.uid())
+        and public.is_group_member(group_id, auth.uid())
+    )
+    with check (
+        public.is_approved_user(auth.uid())
+        and public.is_group_member(group_id, auth.uid())
     );
 
 -- Expenses Policies
@@ -453,6 +466,37 @@ begin
     end if;
 end;
 $$;
+
+
+-- Atomic admin action to completely delete a rejected user from auth.users (cascades to public.profiles)
+create or replace function public.delete_user_by_admin(user_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    admin_uuid text;
+begin
+    -- 1. Check if caller is admin
+    select value into admin_uuid from public.app_config where key = 'admin_uuid' limit 1;
+    if (auth.uid()::text <> admin_uuid or admin_uuid is null) then
+        return jsonb_build_object('error', 'Only the administrator can delete users.');
+    end if;
+
+    -- 2. Do not allow admin to delete themselves
+    if (auth.uid() = user_id) then
+        return jsonb_build_object('error', 'You cannot delete yourself.');
+    end if;
+
+    -- 3. Delete from auth.users (cascade will handle profiles and everything else)
+    delete from auth.users where id = user_id;
+
+    return jsonb_build_object('success', true);
+end;
+$$;
+
+
 
 
 -- ==========================================

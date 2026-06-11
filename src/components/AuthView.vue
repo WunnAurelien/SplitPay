@@ -17,11 +17,32 @@ const isLogin = ref(true)
 const showReset = ref(false)
 const email = ref('')
 const password = ref('')
+const confirmPassword = ref('')
 const username = ref('')
 const paymentLink = ref('')
 const errorMsg = ref('')
 const successMsg = ref('')
 const isLoading = ref(false)
+
+const getTranslationAuthError = (err) => {
+  if (!err) return ''
+  const msg = err.message || ''
+  
+  if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials') || msg.includes('invalid_grant')) {
+    return t('auth.invalidCredentials')
+  }
+  if (msg.includes('User already exists') || msg.includes('already registered')) {
+    return t('auth.userAlreadyExists')
+  }
+  if (msg.includes('Email not confirmed') || msg.includes('Email signup is disabled') || msg.includes('email_not_confirmed')) {
+    return t('auth.emailNotConfirmed')
+  }
+  if (msg.includes('Password should be at least 6 characters') || msg.includes('Password is too short')) {
+    return t('auth.passwordMinLength')
+  }
+  
+  return msg || t('auth.authErrorFallback')
+}
 
 const handleAuth = async () => {
   errorMsg.value = ''
@@ -39,13 +60,24 @@ const handleAuth = async () => {
       email.value = ''
     } catch (err) {
       console.error('Reset password error:', err)
-      errorMsg.value = err.message || t('auth.authErrorFallback')
+      errorMsg.value = getTranslationAuthError(err)
     } finally {
       isLoading.value = false
     }
     return
   }
 
+  // Client-side validation for signup
+  if (!isLogin.value) {
+    if (password.value.length < 6) {
+      errorMsg.value = t('auth.passwordMinLength')
+      return
+    }
+    if (password.value !== confirmPassword.value) {
+      errorMsg.value = t('auth.passwordMismatch')
+      return
+    }
+  }
 
   isLoading.value = true
   
@@ -78,20 +110,22 @@ const handleAuth = async () => {
       if (data?.session) {
         // Session immédiate
         await actions.initialize()
-        router.push('/settings')
+        const redirect = route.query.redirect
+        router.push(redirect || '/settings')
       } else {
         // Confirmation d'email requise
         successMsg.value = t('auth.signUpSuccessConfirm')
         // Optionnel : Réinitialiser les champs du formulaire d'inscription
         email.value = ''
         password.value = ''
+        confirmPassword.value = ''
         username.value = ''
         paymentLink.value = ''
       }
     }
   } catch (err) {
     console.error('Auth error:', err)
-    errorMsg.value = err.message || t('auth.authErrorFallback')
+    errorMsg.value = getTranslationAuthError(err)
   } finally {
     isLoading.value = false
   }
@@ -102,17 +136,20 @@ const toggleMode = () => {
   showReset.value = false
   errorMsg.value = ''
   successMsg.value = ''
+  confirmPassword.value = ''
 }
 
 const toggleReset = () => {
   showReset.value = !showReset.value
   errorMsg.value = ''
   successMsg.value = ''
+  confirmPassword.value = ''
 }
 
 const goToLoginAfterSignUp = () => {
   isLogin.value = true
   successMsg.value = ''
+  confirmPassword.value = ''
 }
 </script>
 
@@ -194,6 +231,17 @@ const goToLoginAfterSignUp = () => {
             required
             :label="$t('auth.passwordLabel')"
             placeholder="••••••••"
+          />
+
+          <!-- Confirm Password (uniquement en mode inscription) -->
+          <BaseInput
+            v-if="!isLogin && !showReset"
+            type="password"
+            id="confirm-password"
+            v-model="confirmPassword"
+            required
+            :label="$t('auth.confirmPasswordLabel')"
+            :placeholder="t('auth.confirmPasswordPlaceholder') || '••••••••'"
           />
 
           <!-- Champs d'inscription -->

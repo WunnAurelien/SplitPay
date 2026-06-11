@@ -107,15 +107,16 @@ function setupGlobalChannels(supabase, store) {
   profileChannel
     .on(
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'profiles' },
+      { event: '*', schema: 'public', table: 'profiles' },
       async (payload) => {
-        const updatedProfile = payload.new
-        console.log('[Realtime] Profile UPDATE:', updatedProfile?.id)
+        const eventType = payload.eventType
+        const updatedProfile = payload.new || payload.old
+        console.log(`[Realtime] Profile ${eventType}:`, updatedProfile?.id)
 
         const currentUserId = store.state.session?.user?.id
 
-        // 1. Si c'est notre propre profil, mettre à jour state.profile
-        if (currentUserId && updatedProfile.id === currentUserId) {
+        // 1. Si c'est notre propre profil et que c'est un UPDATE
+        if (eventType === 'UPDATE' && currentUserId && updatedProfile.id === currentUserId) {
           const oldStatus = store.state.profile?.status
           store.state.profile = { ...store.state.profile, ...updatedProfile }
 
@@ -128,25 +129,41 @@ function setupGlobalChannels(supabase, store) {
 
         // 2. Si on est admin ou si le profil est visible (approuvé), mettre à jour state.profiles
         if (store.state.isAdmin) {
-          const idx = store.state.profiles.findIndex(p => p.id === updatedProfile.id)
-          if (idx !== -1) {
-            store.state.profiles[idx] = { ...store.state.profiles[idx], ...updatedProfile }
-          } else {
-            // Nouveau profil apparu (admin peut tout voir)
+          if (eventType === 'INSERT') {
             await store.actions.fetchAdminProfiles()
+          } else if (eventType === 'UPDATE') {
+            const idx = store.state.profiles.findIndex(p => p.id === updatedProfile.id)
+            if (idx !== -1) {
+              store.state.profiles[idx] = { ...store.state.profiles[idx], ...updatedProfile }
+            } else {
+              // Nouveau profil apparu (admin peut tout voir)
+              await store.actions.fetchAdminProfiles()
+            }
+          } else if (eventType === 'DELETE') {
+            store.state.profiles = store.state.profiles.filter(p => p.id !== updatedProfile.id)
           }
-        } else if (updatedProfile.status === 'approved') {
+        } else {
           // Utilisateur non-admin : ne voit que les profils approuvés
-          const idx = store.state.profiles.findIndex(p => p.id === updatedProfile.id)
-          if (idx !== -1) {
-            store.state.profiles[idx] = { ...store.state.profiles[idx], ...updatedProfile }
-          } else {
-            // Peut-être un nouveau profil approuvé — refresh
-            await store.actions.fetchProfiles()
+          if (eventType === 'INSERT') {
+            if (updatedProfile.status === 'approved') {
+              await store.actions.fetchProfiles()
+            }
+          } else if (eventType === 'UPDATE') {
+            if (updatedProfile.status === 'approved') {
+              const idx = store.state.profiles.findIndex(p => p.id === updatedProfile.id)
+              if (idx !== -1) {
+                store.state.profiles[idx] = { ...store.state.profiles[idx], ...updatedProfile }
+              } else {
+                // Peut-être un nouveau profil approuvé — refresh
+                await store.actions.fetchProfiles()
+              }
+            } else {
+              // Si un profil n'est plus approuvé, le retirer de la liste
+              store.state.profiles = store.state.profiles.filter(p => p.id !== updatedProfile.id)
+            }
+          } else if (eventType === 'DELETE') {
+            store.state.profiles = store.state.profiles.filter(p => p.id !== updatedProfile.id)
           }
-        } else if (updatedProfile.status !== 'approved') {
-          // Si un profil n'est plus approuvé, le retirer de la liste
-          store.state.profiles = store.state.profiles.filter(p => p.id !== updatedProfile.id)
         }
       }
     )

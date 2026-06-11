@@ -534,7 +534,13 @@ const actions = {
       // let's make sure it handles both Mock and Real database mapping.
       let members = []
       if (group.group_members) {
-        members = group.group_members.map(gm => gm.profiles).filter(Boolean)
+        members = group.group_members.map(gm => {
+          if (!gm.profiles) return null
+          return {
+            ...gm.profiles,
+            note: gm.note || ''
+          }
+        }).filter(Boolean)
       }
 
       state.activeGroup = {
@@ -625,6 +631,32 @@ const actions = {
         await this.fetchGroups()
       } else {
         await this.fetchGroupDetails(groupId)
+      }
+    } catch (e) {
+      this.setError(e)
+      throw e
+    } finally {
+      state.loading = false
+    }
+  },
+
+  async updateGroupMemberNote(groupId, profileId, note) {
+    state.loading = true
+    state.error = null
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .update({ note })
+        .eq('group_id', groupId)
+        .eq('profile_id', profileId)
+
+      if (error) throw error
+      
+      if (state.activeGroup && state.activeGroup.id === groupId) {
+        const mem = state.activeGroup.members.find(m => m.id === profileId)
+        if (mem) {
+          mem.note = note
+        }
       }
     } catch (e) {
       this.setError(e)
@@ -744,6 +776,25 @@ const actions = {
       if (idx !== -1) {
         state.profiles[idx].status = status
       }
+    } catch (e) {
+      this.setError(e)
+      throw e
+    } finally {
+      state.loading = false
+    }
+  },
+
+  async deleteUser(userId) {
+    if (!state.isAdmin) return
+    state.loading = true
+    state.error = null
+    try {
+      const { data, error } = await supabase.rpc('delete_user_by_admin', { user_id: userId })
+      if (error) throw error
+      if (data && data.error) throw new Error(data.error)
+      
+      // Update local profiles list
+      state.profiles = state.profiles.filter(p => p.id !== userId)
     } catch (e) {
       this.setError(e)
       throw e

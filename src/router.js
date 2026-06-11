@@ -37,7 +37,7 @@ const routes = [
     path: '/group/:id/join',
     name: 'join-group',
     component: JoinGroupView,
-    meta: { requiresAuth: true, requiresApproval: true }
+    meta: { requiresAuth: true, requiresApproval: false }
   },
   {
     path: '/settings',
@@ -86,6 +86,9 @@ router.beforeEach(async (to, from) => {
 
   // 1. Unauthenticated route guard — preserve intended destination so user can return after login
   if (to.meta.requiresAuth && !isLoggedIn) {
+    if (to.path && to.path.startsWith('/group/')) {
+      localStorage.setItem('splitpay_redirect_after_auth', to.fullPath)
+    }
     return { name: 'auth', query: { redirect: to.fullPath } }
   }
 
@@ -100,7 +103,11 @@ router.beforeEach(async (to, from) => {
 
   // 3. Approval status guard (pending/rejected users must stay on settings/profile)
   if (to.meta.requiresApproval && !isUserApproved) {
-    return { name: 'settings' }
+    if (to.path && to.path.startsWith('/group/')) {
+      localStorage.setItem('splitpay_redirect_after_auth', to.fullPath)
+    }
+    const redirect = localStorage.getItem('splitpay_redirect_after_auth') || to.fullPath
+    return { name: 'settings', query: { redirect } }
   }
 
   // 4. Admin guard

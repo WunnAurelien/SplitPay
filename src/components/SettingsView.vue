@@ -26,6 +26,44 @@ const isSaving = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
 
+const hasPendingRedirect = ref(!!localStorage.getItem('splitpay_redirect_after_auth'))
+const pendingJoinGroupId = ref(localStorage.getItem('splitpay_pending_join_group_id'))
+const pendingJoinStatus = ref(localStorage.getItem('splitpay_pending_join_status'))
+const pendingGroupName = ref('')
+const isFetchingGroup = ref(false)
+const pendingRedirectUrl = ref(localStorage.getItem('splitpay_redirect_after_auth'))
+
+const fetchPendingGroupName = async () => {
+  let targetGroupId = pendingJoinGroupId.value
+  if (!targetGroupId && pendingRedirectUrl.value) {
+    const match = pendingRedirectUrl.value.match(/\/group\/([a-f0-9-]+)\/join/)
+    if (match && match[1]) {
+      targetGroupId = match[1]
+    }
+  }
+  
+  if (targetGroupId) {
+    isFetchingGroup.value = true
+    try {
+      const { data: group } = await supabase
+        .from('groups')
+        .select('name')
+        .eq('id', targetGroupId)
+        .single()
+      if (group) {
+        pendingGroupName.value = group.name
+        if (!pendingJoinGroupId.value) {
+          pendingJoinGroupId.value = targetGroupId
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching pending group name:', err)
+    } finally {
+      isFetchingGroup.value = false
+    }
+  }
+}
+
 const syncFields = () => {
   if (state.profile) {
     username.value = state.profile.username || ''
@@ -37,6 +75,7 @@ const syncFields = () => {
 
 onMounted(() => {
   syncFields()
+  fetchPendingGroupName()
 })
 
 watch(() => state.profile, () => {
@@ -109,7 +148,42 @@ const handleLogout = async () => {
           </div>
           <div class="text-sm mt-2 text-base-content/70">
             <p v-if="state.profile?.status === 'approved'">{{ $t('settings.approvedMsg') }}</p>
-            <p v-else-if="state.profile?.status === 'pending'">{{ $t('settings.pendingMsg') }}</p>
+            <template v-else-if="state.profile?.status === 'pending'">
+              <p>{{ $t('settings.pendingMsg') }}</p>
+              
+              <!-- Case 1: Accepted invite pending approval -->
+              <div v-if="pendingJoinStatus === 'accepted'" class="mt-3 p-4 bg-success/10 border border-success/20 rounded-xl text-sm flex items-start gap-3">
+                <span class="text-lg">✅</span>
+                <div class="leading-relaxed text-base-content/85 flex-1">
+                  <p v-if="pendingGroupName">
+                    {{ $t('settings.acceptedInvitePendingGroupMsg', { name: pendingGroupName }) || `Vous rejoindrez le groupe "${pendingGroupName}" automatiquement dès que votre compte sera approuvé.` }}
+                  </p>
+                  <p v-else>
+                    {{ $t('settings.acceptedInvitePendingMsg') || 'Vous rejoindrez le groupe automatiquement dès que votre compte sera approuvé.' }}
+                  </p>
+                </div>
+              </div>
+              
+              <!-- Case 2: Has invite but hasn't made a choice yet -->
+              <div v-else-if="hasPendingRedirect" class="mt-3 p-4 bg-cyan/10 border border-cyan/20 rounded-xl text-sm flex flex-col gap-3">
+                <div class="flex items-start gap-3">
+                  <span class="text-lg">👉</span>
+                  <div class="leading-relaxed text-base-content/85 flex-1">
+                    <p v-if="pendingGroupName">
+                      {{ $t('settings.undecidedInviteGroupMsg', { name: pendingGroupName }) || `Vous avez été invité à rejoindre le groupe "${pendingGroupName}".` }}
+                    </p>
+                    <p v-else>
+                      {{ $t('settings.undecidedInviteMsg') || 'Vous avez reçu un lien d\'invitation pour rejoindre un groupe.' }}
+                    </p>
+                  </div>
+                </div>
+                <div class="flex justify-end">
+                  <BaseButton :to="pendingRedirectUrl || `/group/${pendingJoinGroupId}/join`" variant="primary" size="sm">
+                    {{ $t('settings.viewInviteBtn') || 'Voir l\'invitation' }}
+                  </BaseButton>
+                </div>
+              </div>
+            </template>
             <p v-else-if="state.profile?.status === 'rejected'">{{ $t('settings.rejectedMsg') }}</p>
             <p v-else>{{ $t('settings.loadingStatus') }}</p>
           </div>

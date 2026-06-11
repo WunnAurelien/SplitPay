@@ -57,6 +57,23 @@ const handleJoin = async () => {
   isJoining.value = true
   errorMsg.value = ''
   try {
+    const isPending = state.profile?.status === 'pending'
+    
+    if (isPending) {
+      localStorage.setItem('splitpay_pending_join_group_id', groupId)
+      localStorage.setItem('splitpay_pending_join_status', 'accepted')
+      localStorage.removeItem('splitpay_redirect_after_auth')
+      
+      await actions.alert({
+        title: t('group.inviteAcceptedTitle') || 'Invitation acceptée',
+        message: t('group.inviteAcceptedPendingMsg', { name: groupName.value }) || `Vous rejoindrez le groupe "${groupName.value}" automatiquement dès que votre compte sera approuvé.`,
+        okText: t('common.ok') || 'OK'
+      })
+      
+      router.push('/settings')
+      return
+    }
+
     // Insert membership row for current user (allowed by our updated insert policy)
     const { error } = await supabase
       .from('group_members')
@@ -77,6 +94,18 @@ const handleJoin = async () => {
     errorMsg.value = err.message || t('group.joinFailed') || 'Impossible de rejoindre le groupe.'
   } finally {
     isJoining.value = false
+  }
+}
+
+const handleCancel = () => {
+  localStorage.removeItem('splitpay_redirect_after_auth')
+  localStorage.removeItem('splitpay_pending_join_group_id')
+  localStorage.removeItem('splitpay_pending_join_status')
+  
+  if (state.profile?.status === 'approved') {
+    router.push('/')
+  } else {
+    router.push('/settings')
   }
 }
 </script>
@@ -114,7 +143,7 @@ const handleJoin = async () => {
           <BaseButton @click="handleJoin" variant="primary" :loading="isJoining" class="w-full">
             {{ $t('group.joinConfirmBtn') || 'Rejoindre le groupe' }}
           </BaseButton>
-          <BaseButton to="/" variant="secondary" class="w-full">
+          <BaseButton @click="handleCancel" variant="secondary" class="w-full">
             {{ $t('common.cancel') }}
           </BaseButton>
         </div>

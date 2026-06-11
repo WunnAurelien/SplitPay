@@ -33,6 +33,18 @@ const handleImpersonate = async (profile) => {
   router.push('/')
 }
 
+const handleDelete = async (profile) => {
+  const ok = await actions.confirm({
+    title: t('admin.deleteBtn') || 'Supprimer',
+    message: t('admin.confirmDeleteUser'),
+    confirmText: t('admin.deleteBtn') || 'Supprimer',
+    cancelText: t('common.cancel') || 'Annuler'
+  })
+  if (ok) {
+    await actions.deleteUser(profile.id)
+  }
+}
+
 const handleRefresh = async () => {
   await actions.fetchAdminProfiles()
 }
@@ -89,6 +101,7 @@ const handleRefresh = async () => {
                   <BaseButton v-if="profile.status === 'approved'" @click="handleImpersonate(profile)" variant="secondary" size="sm">{{ $t('admin.loginAs') }}</BaseButton>
                   <BaseButton v-if="profile.status !== 'approved'" @click="handleStatusUpdate(profile.id, 'approved')" variant="secondary" size="sm">{{ $t('admin.approveBtn') }}</BaseButton>
                   <BaseButton v-if="profile.status !== 'rejected'" @click="handleStatusUpdate(profile.id, 'rejected')" variant="secondary" size="sm">{{ $t('admin.rejectBtn') }}</BaseButton>
+                  <BaseButton v-if="profile.status === 'rejected'" @click="handleDelete(profile)" variant="danger" size="sm">{{ $t('admin.deleteBtn') }}</BaseButton>
                 </div>
                 <div v-else class="text-sm italic text-base-content/60">{{ $t('admin.protected') }}</div>
               </td>

@@ -9,6 +9,7 @@ import BaseCard from './ui/BaseCard.vue'
 import BaseInput from './ui/BaseInput.vue'
 import ErrorBanner from './ui/ErrorBanner.vue'
 import PullToRefresh from './ui/PullToRefresh.vue'
+import { isRunningAsPWA } from '../usePWA'
 
 const handleRefresh = () => {
   // Settings are local — just re-sync the form fields from state
@@ -73,9 +74,239 @@ const syncFields = () => {
   }
 }
 
+const isIOSDevice = ref(false)
+const isStandalone = ref(false)
+const isPushSupported = ref(false)
+const isSubscribed = ref(false)
+const isSubscribing = ref(false)
+const debugLogs = ref([])
+const showDebug = ref(false)
+const notificationPermission = ref('default')
+const isInsecureOrigin = ref(false)
+const isHttps = ref(false)
+
+const logDebug = (msg) => {
+  console.log(msg)
+  debugLogs.value.push(`${new Date().toLocaleTimeString()} - ${msg}`)
+}
+
+const logErrorDetails = (label, err) => {
+  const name = err?.name || 'UnknownError';
+  const message = err?.message || 'No message';
+  const stack = err?.stack || 'No stack trace';
+  const code = err?.code !== undefined ? err.code : 'N/A';
+  
+  logDebug(`[Error] ${label}: ${name} - ${message}`);
+  logDebug(`[Error Details] Code: ${code}`);
+  if (err && typeof err === 'object') {
+    try {
+      const keys = Object.getOwnPropertyNames(err);
+      for (const key of keys) {
+        if (key !== 'stack' && key !== 'message') {
+          logDebug(`  ${key}: ${err[key]}`);
+        }
+      }
+    } catch (e) {
+      logDebug(`[Error Keys] failed to extract keys: ${e.message}`);
+    }
+  }
+  const stackLines = stack.split('\n');
+  for (const line of stackLines.slice(0, 5)) {
+    if (line.trim()) {
+      logDebug(`  ${line.trim()}`);
+    }
+  }
+}
+
+const urlBase64ToUint8Array = (base64String) => {
+  // Supprimer les espaces éventuels
+  const str = base64String.trim();
+  const padding = '='.repeat((4 - (str.length % 4)) % 4);
+  const base64 = (str + padding).replace(/-/g, '+').replace(/_/g, '/');
+  
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+};
+
+const getServiceWorkerReady = () => {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Service Worker ready timeout')), 5000))
+  ])
+}
+
+const activeRegistration = ref(null)
+
+const initNotifications = async () => {
+  isIOSDevice.value = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  isStandalone.value = isRunningAsPWA()
+  isPushSupported.value = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window
+  
+  notificationPermission.value = 'Notification' in window ? Notification.permission : 'default'
+  
+  const protocol = window.location.protocol
+  const hostname = window.location.hostname
+  isInsecureOrigin.value = protocol !== 'https:' && hostname !== 'localhost' && hostname !== '127.0.0.1'
+  isHttps.value = protocol === 'https:'
+
+  // Parse iOS version from User Agent
+  const ua = navigator.userAgent
+  let iosVersion = 'Unknown'
+  const matches = ua.match(/OS (\d+)_(\d+)_?(\d+)?/)
+  if (matches) {
+    iosVersion = `${matches[1]}.${matches[2]}${matches[3] ? '.' + matches[3] : ''}`
+  }
+
+  // Listen for service worker controller change to automatically refresh
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      logDebug('SW Controller changed! Reloading page in 500ms to apply changes...')
+      setTimeout(() => {
+        window.location.reload()
+      }, 500)
+    })
+  }
+
+  const controller = navigator.serviceWorker.controller
+  logDebug(`[Env] Origin: ${window.location.origin}, PWA: ${isStandalone.value ? 'Yes' : 'No'}, Secure: ${!isInsecureOrigin.value}`)
+  logDebug(`[Device] iOS Version: ${iosVersion}, iOS Device: ${isIOSDevice.value}`)
+  logDebug(`[Push] PushSupported: ${isPushSupported.value}, SW Controller: ${controller ? 'Active' : 'None'}, Permission: ${notificationPermission.value}`)
+
+  if (isPushSupported.value) {
+    try {
+      const registration = await getServiceWorkerReady()
+      activeRegistration.value = registration
+      logDebug(`Service Worker ready. Scope: ${registration.scope}`)
+      
+      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+      if (vapidPublicKey) {
+        try {
+          const converted = urlBase64ToUint8Array(vapidPublicKey)
+          logDebug(`[VAPID Init] Key Decoded: len=${converted.length}, firstByte=${converted[0]}`)
+        } catch (e) {
+          logDebug(`[VAPID Init] Decoding failed: ${e.message}`)
+        }
+      }
+
+      const subscription = await registration.pushManager.getSubscription()
+      isSubscribed.value = !!subscription
+      logDebug(`Existing subscription: ${isSubscribed.value}`)
+    } catch (err) {
+      logDebug(`Error checking push subscription: ${err.message}`)
+      console.error('Error checking push subscription:', err)
+    }
+  }
+}
+
+const handleSubscribe = () => {
+  if (!isPushSupported.value) {
+    logDebug('Push not supported, aborting subscribe.')
+    return
+  }
+  
+  isSubscribing.value = true
+  errorMsg.value = ''
+  
+  const initialPermission = 'Notification' in window ? Notification.permission : 'default'
+  notificationPermission.value = initialPermission
+  
+  logDebug(`[Chain] Clic détecté. Statut permission initial: ${initialPermission}`)
+
+  const registration = activeRegistration.value
+  if (!registration) {
+    errorMsg.value = 'Le Service Worker n\'est pas encore prêt. Veuillez rééssayer.'
+    isSubscribing.value = false
+    return
+  }
+
+  const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+  if (!vapidPublicKey) {
+    errorMsg.value = 'La clé publique VAPID n\'est pas configurée.'
+    isSubscribing.value = false
+    return
+  }
+
+  let convertedKey
+  try {
+    convertedKey = urlBase64ToUint8Array(vapidPublicKey)
+  } catch (err) {
+    logErrorDetails('Décodage VAPID', err)
+    errorMsg.value = `Erreur configuration clé VAPID: ${err.message}`
+    isSubscribing.value = false
+    return
+  }
+
+  const doSubscribe = () => {
+    logDebug('[Chain] Appel direct de registration.pushManager.subscribe...')
+    return registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedKey
+    })
+    .then((subscription) => {
+      logDebug('[Chain] Subscription réussie avec succès.')
+      
+      if (state.profile?.id) {
+        logDebug('[Chain] Enregistrement dans Supabase...')
+        return supabase
+          .from('profiles')
+          .update({ push_subscription: subscription })
+          .eq('id', state.profile.id)
+          .then(({ error }) => {
+            if (error) throw error
+            logDebug('[Chain] Sauvegarde Supabase réussie.')
+            isSubscribed.value = true
+          })
+      } else {
+        logDebug('[Chain] Pas d\'ID utilisateur, abonnement actif localement.')
+        isSubscribed.value = true
+      }
+    })
+  }
+
+  if (initialPermission === 'granted') {
+    logDebug('[Chain] La permission est déjà accordée. Appel immédiat de subscribe.')
+    doSubscribe()
+      .catch((err) => {
+        logErrorDetails('Direct Subscribe', err)
+        errorMsg.value = `Échec de l'abonnement direct : ${err.message} (${err.name})`
+      })
+      .finally(() => {
+        isSubscribing.value = false
+      })
+  } else if (initialPermission === 'denied') {
+    logDebug('[Chain] Permission déjà refusée (denied).')
+    errorMsg.value = 'Les notifications sont bloquées dans les paramètres de votre appareil. Veuillez les activer manuellement.'
+    isSubscribing.value = false
+  } else {
+    logDebug('[Chain] Demande de permission...')
+    Notification.requestPermission()
+      .then((permission) => {
+        logDebug(`[Chain] Permission résolue à: ${permission}`)
+        notificationPermission.value = permission
+        if (permission !== 'granted') {
+          throw new Error(`L'utilisateur a décliné la permission de notification (${permission}).`)
+        }
+        return doSubscribe()
+      })
+      .catch((err) => {
+        logErrorDetails('Chained Subscribe', err)
+        errorMsg.value = `Échec de l'activation : ${err.message} (${err.name})`
+      })
+      .finally(() => {
+        isSubscribing.value = false
+      })
+  }
+}
+
 onMounted(() => {
   syncFields()
   fetchPendingGroupName()
+  initNotifications()
 })
 
 watch(() => state.profile, () => {
@@ -126,7 +357,7 @@ const handleLogout = async () => {
 
 <template>
   <PullToRefresh :loading="false" :on-refresh="handleRefresh">
-  <div class="flex justify-center py-6 sm:py-8">
+  <div class="flex flex-col items-center py-6 sm:py-8 gap-6 w-full px-4">
     <BaseCard class="w-full max-w-2xl p-6">
       <!-- Header -->
       <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -214,6 +445,131 @@ const handleLogout = async () => {
           <BaseButton type="button" @click="handleLogout" variant="secondary" class="text-error">{{ $t('settings.signOut') }}</BaseButton>
         </div>
       </form>
+    </BaseCard>
+
+    <!-- Push Notifications Section -->
+    <BaseCard class="w-full max-w-2xl p-6">
+      <div class="mb-4">
+        <h3 class="text-xl font-semibold">{{ $t('settings.pushNotifications') }}</h3>
+        <p class="text-sm text-base-content/70">{{ $t('settings.pushNotificationsSubtitle') }}</p>
+      </div>
+
+      <!-- iOS non-PWA fallback warning -->
+      <div v-if="isIOSDevice && !isStandalone" class="p-4 bg-warning/10 border border-warning/20 rounded-xl text-sm flex items-start gap-3 w-full">
+        <span class="text-lg">⚠️</span>
+        <div class="leading-relaxed text-base-content/85 flex-1">
+          <p class="font-semibold text-warning">{{ $t('settings.iosPwaRequired') }}</p>
+          <p class="mt-1 text-xs text-base-content/70">{{ $t('settings.iosPwaInstruction') }}</p>
+        </div>
+      </div>
+
+      <!-- Browser not supported fallback warning -->
+      <div v-else-if="!isPushSupported" class="p-4 bg-error/10 border border-error/20 rounded-xl text-sm flex items-start gap-3 w-full animate-fade-in">
+        <span class="text-lg">❌</span>
+        <div class="leading-relaxed text-base-content/85 flex-1">
+          <p class="font-semibold text-error">Notifications non supportées</p>
+          <p class="mt-1 text-xs text-base-content/70">
+            Votre navigateur ou votre mode de navigation actuel ne supporte pas les notifications push natives.
+          </p>
+        </div>
+      </div>
+
+      <!-- Standalone/Standard Notifications Config -->
+      <div v-else class="w-full flex flex-col gap-4 py-2">
+        <!-- Insecure Origin Warning -->
+        <div v-if="isInsecureOrigin" class="p-4 bg-warning/10 border border-warning/20 rounded-xl text-sm flex items-start gap-3 w-full">
+          <span class="text-lg">⚠️</span>
+          <div class="leading-relaxed text-base-content/85 flex-1">
+            <p class="font-semibold text-warning">Connexion non sécurisée (HTTP)</p>
+            <p class="mt-1 text-xs text-base-content/70">
+              Le Web Push requiert obligatoirement une connexion HTTPS sécurisée avec un certificat SSL valide. Les adresses IP locales en HTTP (comme 192.168.x.x) ne supportent pas les notifications push sur iOS.
+            </p>
+            <p class="mt-2 text-xs text-base-content/70">
+              <strong>Solution :</strong> Utilisez un tunnel de développement sécurisé comme <strong>ngrok</strong> ou <strong>Cloudflare Tunnel</strong> pour exposer votre projet en HTTPS.
+            </p>
+          </div>
+        </div>
+
+        <!-- Permission denied instructions -->
+        <div v-if="notificationPermission === 'denied'" class="p-4 bg-error/10 border border-error/20 rounded-xl text-sm flex items-start gap-3 w-full">
+          <span class="text-lg">🚫</span>
+          <div class="leading-relaxed text-base-content/85 flex-1">
+            <p class="font-semibold text-error">Notifications bloquées par le système</p>
+            <p class="mt-1 text-xs text-base-content/70">
+              Pour réactiver les notifications sur votre iPhone :
+            </p>
+            <ol class="list-decimal list-inside text-xs mt-1 text-base-content/70 space-y-1">
+              <li>Allez dans l'application <strong>Réglages</strong> de votre iOS.</li>
+              <li>Sélectionnez <strong>Notifications</strong> puis cherchez <strong>SplitPay</strong> dans la liste.</li>
+              <li>Activez l'option <strong>Autoriser les notifications</strong>.</li>
+            </ol>
+            <p class="mt-2 text-[10px] text-base-content/50 leading-snug">
+              Si SplitPay ne figure pas dans la liste des Réglages, supprimez l'application de votre écran d'accueil, effacez l'historique et les données de site du domaine dans les paramètres de Safari, puis rajoutez à nouveau l'application sur l'écran d'accueil.
+            </p>
+          </div>
+        </div>
+
+        <!-- Self-Signed SSL Warning -->
+        <div v-if="isIOSDevice && isHttps && !isSubscribed" class="p-4 bg-info/10 border border-info/20 rounded-xl text-sm flex items-start gap-3 w-full">
+          <span class="text-lg">💡</span>
+          <div class="leading-relaxed text-base-content/85 flex-1">
+            <p class="font-semibold text-info">Certificat SSL Auto-signé ?</p>
+            <p class="mt-1 text-xs text-base-content/70">
+              iOS Safari <strong>bloque silencieusement</strong> les abonnements push si le certificat SSL n'est pas signé par une autorité reconnue. Si vous utilisez un certificat local auto-signé, utilisez un tunnel de test (ex: ngrok).
+            </p>
+          </div>
+        </div>
+
+        <!-- Subscription Panel (Controls) -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full">
+          <div class="flex items-center gap-3">
+            <div :class="[isSubscribed ? 'bg-success/20 text-success' : 'bg-base-300 text-base-content/50']" class="w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0">
+              {{ isSubscribed ? '🔔' : '🔕' }}
+            </div>
+            <div>
+              <p class="font-medium">
+                {{ isSubscribed ? $t('settings.notificationsEnabled') : $t('settings.notificationsDisabled') }}
+              </p>
+              <p class="text-xs text-base-content/60">
+                {{ isSubscribed ? $t('settings.notificationsEnabledSubtitle') : $t('settings.notificationsDisabledSubtitle') }}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex justify-end flex-shrink-0">
+            <button 
+              v-if="!isSubscribed" 
+              @click="handleSubscribe" 
+              :disabled="isSubscribing"
+              class="btn btn-primary btn-sm flex items-center gap-2"
+            >
+              <span v-if="isSubscribing" class="loading loading-spinner loading-xs"></span>
+              {{ $t('settings.enableNotificationsBtn') }}
+            </button>
+            <span v-else class="badge badge-success text-xs font-semibold py-1 px-3">
+              {{ $t('settings.active') }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Debug Console (Toggleable) -->
+      <div class="mt-4 pt-4 border-t border-base-content/10 w-full">
+        <button 
+          type="button"
+          @click="showDebug = !showDebug" 
+          class="text-xs text-cyan hover:underline flex items-center gap-1 focus:outline-none"
+        >
+          {{ showDebug ? '⚠️ Masquer les logs de débogage' : '🛠️ Afficher les logs de débogage' }}
+        </button>
+        
+        <div v-if="showDebug" class="mt-2 p-3 bg-base-300 rounded-lg text-[11px] font-mono leading-relaxed text-base-content/80 max-h-40 overflow-y-auto w-full">
+          <div v-if="debugLogs.length === 0" class="text-base-content/50">Aucun log disponible.</div>
+          <div v-for="(log, i) in debugLogs" :key="i" class="border-b border-base-content/5 py-0.5 last:border-0">
+            {{ log }}
+          </div>
+        </div>
+      </div>
     </BaseCard>
   </div>
   </PullToRefresh>

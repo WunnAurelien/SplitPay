@@ -31,21 +31,55 @@ let hasScrolledFromTop = false
 
 const isPWA = isRunningAsPWA()
 
+const getScrollContainer = () => {
+  if (isPWA) {
+    let parent = containerRef.value?.parentElement
+    while (parent) {
+      const style = window.getComputedStyle(parent)
+      const overflowY = style.overflowY || style.overflow
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        return parent
+      }
+      parent = parent.parentElement
+    }
+    const mainEl = document.querySelector('main')
+    if (mainEl) return mainEl
+  }
+  return document.body
+}
+
 const preventBodyScroll = () => {
-  document.body.style.overflow = 'hidden'
-  document.body.style.position = 'relative'
+  const container = getScrollContainer()
+  if (container) {
+    if (container === document.body) {
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'relative'
+    } else {
+      container.style.overflowY = 'hidden'
+    }
+  }
 }
 
 const allowBodyScroll = () => {
-  document.body.style.overflow = ''
-  document.body.style.position = ''
+  const container = getScrollContainer()
+  if (container) {
+    if (container === document.body) {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+    } else {
+      container.style.overflowY = 'auto'
+    }
+  }
 }
 
 const onTouchStart = (e) => {
   // Never activate while already loading
   if (pullState.value === 'loading') return
 
-  const scrollTop = window.scrollY || document.documentElement.scrollTop
+  const container = getScrollContainer()
+  const scrollTop = container && container !== document.body
+    ? container.scrollTop
+    : (window.scrollY || document.documentElement.scrollTop)
 
   // Only activate when at the very top of the scroll
   if (scrollTop > 0) {

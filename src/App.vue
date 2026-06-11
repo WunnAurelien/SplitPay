@@ -33,18 +33,31 @@ const pendingCount = computed(() => {
 })
 
 watch(isMobileMenuOpen, (isOpen) => {
+  const isPWA = isRunningAsPWA()
+  const scrollContainer = isPWA ? document.querySelector('main') : null
+
   if (isOpen) {
-    scrollPosition = window.scrollY
-    document.body.style.overflow = 'hidden'
-    document.body.style.position = 'fixed'
-    document.body.style.top = `-${scrollPosition}px`
-    document.body.style.width = '100%'
+    if (isPWA && scrollContainer) {
+      scrollPosition = scrollContainer.scrollTop
+      scrollContainer.style.overflowY = 'hidden'
+    } else {
+      scrollPosition = window.scrollY
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollPosition}px`
+      document.body.style.width = '100%'
+    }
   } else {
-    document.body.style.overflow = ''
-    document.body.style.position = ''
-    document.body.style.top = ''
-    document.body.style.width = ''
-    window.scrollTo(0, scrollPosition)
+    if (isPWA && scrollContainer) {
+      scrollContainer.style.overflowY = 'auto'
+      scrollContainer.scrollTop = scrollPosition
+    } else {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.top = ''
+      document.body.style.width = ''
+      window.scrollTo(0, scrollPosition)
+    }
   }
 })
 

@@ -91,14 +91,12 @@ html, body {
 }
 
 /* PWA mode: lock document scrolling, make <main> the scroll container */
-html.is-pwa {
+html.is-pwa,
+html.is-pwa body,
+html.is-pwa #app,
+html.is-pwa #app > div {
   overflow: hidden;
   height: 100%;
-  height: 100dvh;
-}
-
-html.is-pwa body {
-  overflow: hidden;
   height: 100dvh;
 }
 

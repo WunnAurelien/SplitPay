@@ -123,7 +123,18 @@
     "adminPanel": "Admin Panel",
     "signOut": "Sign Out",
     "profileUpdateSuccess": "Profile updated successfully!",
-    "profileUpdateError": "Failed to update profile."
+    "profileUpdateError": "Failed to update profile.",
+    "pushNotifications": "Push Notifications",
+    "pushNotificationsSubtitle": "Receive real-time alerts for expenses and settlements.",
+    "notificationsEnabled": "Notifications enabled",
+    "notificationsEnabledSubtitle": "You are receiving real-time SplitPay alerts on this device.",
+    "notificationsDisabled": "Notifications disabled",
+    "notificationsDisabledSubtitle": "Push notifications are currently disabled for this device.",
+    "enableNotificationsBtn": "Enable notifications",
+    "iosPwaRequired": "On iOS, notifications require the app to be installed.",
+    "iosPwaInstruction": "To install, tap the Share icon 📤 in Safari, then select 'Add to Home Screen' ➕.",
+    "active": "Active",
+    "pushSubscriptionError": "Failed to enable notifications."
   },
   "admin": {
     "adminPanelTitle": "Administrator Panel",
@@ -244,6 +255,10 @@
     "declareRepayment": "Confirm Repayment",
     "balanceCredit": "Credit: +{amount}",
     "balanceOwes": "Owes: {amount}",
-    "balanceSettled": "Settled"
+    "balanceSettled": "Settled",
+    "request": "Request",
+    "requestRepaymentSuccess": "Repayment request of {amount} sent to {name}!",
+    "requestRepaymentNoPush": "This user has not enabled push notifications.",
+    "requestRepaymentFailed": "Failed to send notification. Please try again."
   }
 }

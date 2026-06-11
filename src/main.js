@@ -3,8 +3,20 @@ import './style.css'
 import App from './App.vue'
 import router from './router'
 import i18n from './i18n'
+import { registerSW } from 'virtual:pwa-register'
 
 import "flag-icons/css/flag-icons.min.css";
+
+// Register PWA service worker with immediate take-over configuration
+registerSW({
+  immediate: true,
+  onRegisteredSW(swScriptUrl) {
+    console.log('[PWA] Service worker registered:', swScriptUrl)
+  },
+  onRegisterError(error) {
+    console.error('[PWA] Service worker registration failed:', error)
+  }
+})
 
 const app = createApp(App)
 app.use(router)

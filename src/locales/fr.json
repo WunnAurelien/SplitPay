@@ -123,7 +123,18 @@
     "adminPanel": "Panel d'administration",
     "signOut": "Se déconnecter",
     "profileUpdateSuccess": "Profil mis à jour avec succès !",
-    "profileUpdateError": "Échec de la mise à jour du profil."
+    "profileUpdateError": "Échec de la mise à jour du profil.",
+    "pushNotifications": "Notifications Push",
+    "pushNotificationsSubtitle": "Recevez des alertes en temps réel pour vos dépenses et remboursements.",
+    "notificationsEnabled": "Notifications activées",
+    "notificationsEnabledSubtitle": "Vous recevez les alertes de SplitPay en temps réel.",
+    "notificationsDisabled": "Notifications désactivées",
+    "notificationsDisabledSubtitle": "Les alertes sont désactivées pour cet appareil.",
+    "enableNotificationsBtn": "Activer les notifications",
+    "iosPwaRequired": "Sur iOS, les notifications requièrent que l'application soit installée.",
+    "iosPwaInstruction": "Pour cela, appuyez sur l'icône de partage 📤 de Safari puis sélectionnez 'Sur l'écran d'accueil' ➕.",
+    "active": "Actif",
+    "pushSubscriptionError": "Échec de l'activation des notifications."
   },
   "admin": {
     "adminPanelTitle": "Panel d'administration",
@@ -244,6 +255,10 @@
     "declareRepayment": "Déclarer le remboursement effectué",
     "balanceCredit": "Crédit : +{amount}",
     "balanceOwes": "Doit : {amount}",
-    "balanceSettled": "Équilibré"
+    "balanceSettled": "Équilibré",
+    "request": "Demander",
+    "requestRepaymentSuccess": "Demande de remboursement de {amount} envoyée à {name} !",
+    "requestRepaymentNoPush": "Cet utilisateur n'a pas activé les notifications push.",
+    "requestRepaymentFailed": "Échec de l'envoi de la notification. Veuillez réessayer."
   }
 }

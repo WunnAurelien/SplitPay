@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { state, activeGroupCalculations, actions } from '../store'
+import { useSupabase } from '../supabase'
 import { teardownGroupChannel } from '../realtime'
 import BaseButton from './ui/BaseButton.vue'
 import BaseModal from './ui/BaseModal.vue'
@@ -20,6 +21,7 @@ const route = useRoute()
 const router = useRouter()
 const groupId = route.params.id
 const { t, locale } = useI18n()
+const { supabase } = useSupabase()
 
 // Modal refs
 const addExpenseDialog = ref(null)
@@ -356,6 +358,73 @@ const handleRejectRepayment = async (expenseId, description) => {
   }
 }
 
+const isRequestingRepayment = ref({})
+
+const handleRequestRepayment = async (transaction, idx) => {
+  const debtor = state.activeGroup?.members?.find(m => m.id === transaction.fromId)
+  if (!debtor) {
+    await actions.alert({
+      title: locale.value === 'fr' ? 'Erreur' : 'Error',
+      message: locale.value === 'fr' ? 'Débiteur introuvable dans le groupe.' : 'Debtor not found in group.',
+      okText: 'OK'
+    })
+    return
+  }
+
+  if (!debtor.push_subscription) {
+    await actions.alert({
+      title: locale.value === 'fr' ? 'Notifications désactivées' : 'Notifications Disabled',
+      message: t('group.requestRepaymentNoPush'),
+      okText: 'OK'
+    })
+    return
+  }
+
+  const confirmMsg = locale.value === 'fr'
+    ? `Voulez-vous envoyer une demande de remboursement de ${formatEuro(transaction.amount)} à ${debtor.username || debtor.email} ?`
+    : `Do you want to send a repayment request of ${formatEuro(transaction.amount)} to ${debtor.username || debtor.email}?`
+  
+  const ok = await actions.confirm({
+    title: t('group.request') || (locale.value === 'fr' ? 'Demander' : 'Request'),
+    message: confirmMsg,
+    confirmText: t('common.confirm') || 'Confirmer',
+    cancelText: t('common.cancel') || 'Annuler'
+  })
+
+  if (!ok) return
+
+  isRequestingRepayment.value[idx] = true
+  try {
+    const senderName = state.profile?.username || state.profile?.email || 'Un membre'
+    const { data, error } = await supabase.functions.invoke('send-push', {
+      body: {
+        recipientId: transaction.fromId,
+        amount: transaction.amount,
+        groupName: state.activeGroup?.name || 'Groupe',
+        groupId: groupId,
+        senderName: senderName
+      }
+    })
+
+    if (error) throw error
+
+    await actions.alert({
+      title: locale.value === 'fr' ? 'Succès' : 'Success',
+      message: t('group.requestRepaymentSuccess', { amount: formatEuro(transaction.amount), name: debtor.username || debtor.email }),
+      okText: 'OK'
+    })
+  } catch (err) {
+    console.error('Error sending request notification:', err)
+    await actions.alert({
+      title: locale.value === 'fr' ? 'Erreur' : 'Error',
+      message: t('group.requestRepaymentFailed') + ` (${err.message})`,
+      okText: 'OK'
+    })
+  } finally {
+    isRequestingRepayment.value[idx] = false
+  }
+}
+
 // Settle Up Handler (Opens choice dialog)
 const handleSettleUp = (transaction) => {
   activeSettleTx.value = transaction
@@ -498,7 +567,7 @@ const handleBackdropClick = (dialog, event) => {
             >
               <div class="tx-info" v-html="$t('group.owesMessage', { from: tx.fromName, to: tx.toName, amount: formatEuro(tx.amount) })">
               </div>
-              <div class="tx-actions">
+              <div class="tx-actions" style="display: flex; gap: 8px; align-items: center;">
                 <BaseButton 
                   v-if="(state.isAdmin || state.session.user.id === tx.fromId) && state.session.user.id !== tx.toId" 
                   @click="handleSettleUp(tx)" 
@@ -506,6 +575,17 @@ const handleBackdropClick = (dialog, event) => {
                   style="padding: 6px 12px; font-size: 0.75rem;"
                 >
                   {{ $t('group.repay') }}
+                </BaseButton>
+                <BaseButton 
+                  v-if="state.session?.user?.id === tx.toId" 
+                  @click="handleRequestRepayment(tx, idx)" 
+                  variant="secondary" size="sm"
+                  class="text-cyan border-cyan/30 hover:bg-cyan/10 hover:text-cyan hover:border-cyan/50"
+                  style="padding: 6px 12px; font-size: 0.75rem;"
+                  :loading="isRequestingRepayment[idx]"
+                  :disabled="isRequestingRepayment[idx]"
+                >
+                  {{ $t('group.request') }}
                 </BaseButton>
               </div>
             </div>
@@ -860,77 +940,6 @@ const handleBackdropClick = (dialog, event) => {
             {{ $t('group.repayInstructions', { name: activeSettleTx.toName }) }}
           </p>
 
-          <!-- Direct Payment Info List -->
-          <div class="payment-info-list">
-            
-            <!-- Wero Card -->
-            <div v-if="activeSettleTx.phoneNumber" class="info-card-detail">
-              <div class="card-header-icon">
-                <span class="m-icon">📱</span>
-                <div>
-                  <h4>Wero (Virement Instantané)</h4>
-                  <p class="m-hint">{{ $t('group.sendWeroTo') }}</p>
-                </div>
-              </div>
-              <div class="copy-value-box">
-                <span class="value-text">{{ activeSettleTx.phoneNumber }}</span>
-                <button type="button" @click="copyToClipboard(activeSettleTx.phoneNumber, 'phone')" class="copy-btn-sm" :class="{ 'copied-success': phoneCopied }" style="min-width: 110px;">
-                  {{ phoneCopied ? $t('group.copied') : $t('group.copy') }}
-                </button>
-              </div>
-            </div>
-
-            <!-- IBAN Card -->
-            <div v-if="activeSettleTx.iban" class="info-card-detail">
-              <div class="card-header-icon">
-                <span class="m-icon">🏦</span>
-                <div>
-                  <h4>Virement Bancaire (IBAN)</h4>
-                  <p class="m-hint">{{ $t('group.sendIbanTo') }}</p>
-                </div>
-              </div>
-              <div class="copy-value-box column-layout">
-                <span class="value-text iban-text">{{ activeSettleTx.iban }}</span>
-                <BaseButton type="button" @click="copyToClipboard(activeSettleTx.iban, 'iban')" variant="secondary" size="sm" style="width: 100%; margin-top: 8px;" :class="{ 'copied-success': ibanCopied }">
-                  {{ ibanCopied ? $t('group.ibanCopied') : $t('group.copyIban') }}
-                </BaseButton>
-              </div>
-            </div>
-
-            <!-- Payment Link Card -->
-            <div v-if="activeSettleTx.paymentLink" class="info-card-detail">
-              <div class="card-header-icon">
-                <span class="m-icon">🔗</span>
-                <div>
-                  <h4>{{ $t('group.payLink') || 'Lien de paiement' }}</h4>
-                  <p class="m-hint">{{ $t('group.payPaypalTo') }}</p>
-                </div>
-              </div>
-              <div class="detail-action-row" style="margin-top: 8px;">
-                <a :href="activeSettleTx.paymentLink" target="_blank" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center;">
-                  🌐 {{ $t('group.openLink') }}
-                </a>
-                <BaseButton type="button" @click="copyToClipboard(activeSettleTx.paymentLink, 'link')" variant="secondary" size="sm" style="flex: 1; min-width: 140px;" :class="{ 'copied-success': linkCopied }">
-                  {{ linkCopied ? $t('group.linkCopied') : $t('group.copyLink') }}
-                </BaseButton>
-              </div>
-            </div>
-
-            <!-- Cash / Other Option Card (Always active for fallback info) -->
-            <div class="info-card-detail info-card-fallback">
-              <div class="card-header-icon" style="margin-bottom: 0;">
-                <span class="m-icon">💵</span>
-                <div>
-                  <h4>{{ $t('group.cashOtherTitle') }}</h4>
-                  <p class="m-hint" style="margin-bottom: 0;">
-                    {{ $t('group.cashOtherDesc') }}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
           <!-- Visual payment method selector cards -->
           <div class="settle-method-section">
             <label class="settle-method-title">
@@ -1016,10 +1025,82 @@ const handleBackdropClick = (dialog, event) => {
                 <span class="card-radio-indicator"></span>
               </label>
             </div>
-            <p class="method-helper-text">
-              {{ $t('group.paymentHistoryDesc') }}
-            </p>
           </div>
+
+          <!-- Direct Payment Info (Only for selected method) -->
+          <div class="payment-info-list">
+            
+            <!-- Wero Card -->
+            <div v-if="selectedPaymentMethod === 'wero' && activeSettleTx.phoneNumber" class="info-card-detail">
+              <div class="card-header-icon">
+                <span class="m-icon">📱</span>
+                <div>
+                  <h4>Wero (Virement Instantané)</h4>
+                  <p class="m-hint">{{ $t('group.sendWeroTo') }}</p>
+                </div>
+              </div>
+              <div class="copy-value-box">
+                <span class="value-text">{{ activeSettleTx.phoneNumber }}</span>
+                <button type="button" @click="copyToClipboard(activeSettleTx.phoneNumber, 'phone')" class="copy-btn-sm" :class="{ 'copied-success': phoneCopied }" style="min-width: 110px;">
+                  {{ phoneCopied ? $t('group.copied') : $t('group.copy') }}
+                </button>
+              </div>
+            </div>
+
+            <!-- IBAN Card -->
+            <div v-if="selectedPaymentMethod === 'iban' && activeSettleTx.iban" class="info-card-detail">
+              <div class="card-header-icon">
+                <span class="m-icon">🏦</span>
+                <div>
+                  <h4>Virement Bancaire (IBAN)</h4>
+                  <p class="m-hint">{{ $t('group.sendIbanTo') }}</p>
+                </div>
+              </div>
+              <div class="copy-value-box column-layout">
+                <span class="value-text iban-text">{{ activeSettleTx.iban }}</span>
+                <BaseButton type="button" @click="copyToClipboard(activeSettleTx.iban, 'iban')" variant="secondary" size="sm" style="width: 100%; margin-top: 8px;" :class="{ 'copied-success': ibanCopied }">
+                  {{ ibanCopied ? $t('group.ibanCopied') : $t('group.copyIban') }}
+                </BaseButton>
+              </div>
+            </div>
+
+            <!-- Payment Link Card -->
+            <div v-if="selectedPaymentMethod === 'link' && activeSettleTx.paymentLink" class="info-card-detail">
+              <div class="card-header-icon">
+                <span class="m-icon">🔗</span>
+                <div>
+                  <h4>{{ $t('group.payLink') || 'Lien de paiement' }}</h4>
+                  <p class="m-hint">{{ $t('group.payPaypalTo') }}</p>
+                </div>
+              </div>
+              <div class="detail-action-row" style="margin-top: 8px;">
+                <a :href="activeSettleTx.paymentLink" target="_blank" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center;">
+                  🌐 {{ $t('group.openLink') }}
+                </a>
+                <BaseButton type="button" @click="copyToClipboard(activeSettleTx.paymentLink, 'link')" variant="secondary" size="sm" style="flex: 1; min-width: 140px;" :class="{ 'copied-success': linkCopied }">
+                  {{ linkCopied ? $t('group.linkCopied') : $t('group.copyLink') }}
+                </BaseButton>
+              </div>
+            </div>
+
+            <!-- Cash / Other Option Card (Always active for fallback info) -->
+            <div v-if="selectedPaymentMethod === 'cash'" class="info-card-detail info-card-fallback">
+              <div class="card-header-icon" style="margin-bottom: 0;">
+                <span class="m-icon">💵</span>
+                <div>
+                  <h4>{{ $t('group.cashOtherTitle') }}</h4>
+                  <p class="m-hint" style="margin-bottom: 0;">
+                    {{ $t('group.cashOtherDesc') }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <p class="method-helper-text">
+            {{ $t('group.paymentHistoryDesc') }}
+          </p>
 
           <div class="dialog-actions" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
             <BaseButton type="button" @click="closeSettleUpModal" variant="secondary" size="sm">
@@ -1518,6 +1599,7 @@ const handleBackdropClick = (dialog, event) => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  margin-bottom: 20px;
 }
 
 .info-card-detail {
@@ -1632,9 +1714,7 @@ const handleBackdropClick = (dialog, event) => {
 
 /* Custom Payment Method Selector */
 .settle-method-section {
-  margin-top: 24px;
-  border-top: 1px solid var(--border-color);
-  padding-top: 20px;
+  margin-bottom: 20px;
 }
 
 .settle-method-title {

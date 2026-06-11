@@ -95,6 +95,25 @@ function setupGlobalChannels(supabase, store) {
         }
       }
     )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'expenses' },
+      async (payload) => {
+        console.log('[Realtime] Global Expense change:', payload.eventType, payload.new?.id || payload.old?.id)
+        // Une dépense a été ajoutée, modifiée ou supprimée — refresh la liste des groupes
+        // pour recalculer les soldes du dashboard en direct
+        await store.actions.fetchGroups()
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'expense_beneficiaries' },
+      async (payload) => {
+        console.log('[Realtime] Global Expense Beneficiary change:', payload.eventType)
+        // Les bénéficiaires ont changé — refresh la liste des groupes pour recalculer les soldes
+        await store.actions.fetchGroups()
+      }
+    )
     .subscribe((status) => {
       console.log('[Realtime] Groups channel status:', status)
     })

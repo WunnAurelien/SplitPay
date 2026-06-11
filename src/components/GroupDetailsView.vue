@@ -9,6 +9,12 @@ import BaseModal from './ui/BaseModal.vue'
 import BaseCard from './ui/BaseCard.vue'
 import BaseInput from './ui/BaseInput.vue'
 import ErrorBanner from './ui/ErrorBanner.vue'
+import PullToRefresh from './ui/PullToRefresh.vue'
+
+const handleRefresh = async () => {
+  if (!groupId) return
+  await actions.fetchGroupDetails(groupId)
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -416,6 +422,7 @@ const handleBackdropClick = (dialog, event) => {
 </script>
 
 <template>
+  <PullToRefresh :loading="state.loading" :on-refresh="handleRefresh">
   <div v-if="state.activeGroup" class="space-y-6">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -986,6 +993,7 @@ const handleBackdropClick = (dialog, event) => {
   <div v-else class="empty-state">
     {{ $t('group.loadingGroup') }}
   </div>
+  </PullToRefresh>
 </template>
 
 

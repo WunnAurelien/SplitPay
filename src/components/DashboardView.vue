@@ -8,6 +8,7 @@ import BaseModal from './ui/BaseModal.vue'
 import BaseCard from './ui/BaseCard.vue'
 import BaseInput from './ui/BaseInput.vue'
 import ErrorBanner from './ui/ErrorBanner.vue'
+import PullToRefresh from './ui/PullToRefresh.vue'
 
 const { t, locale } = useI18n()
 const { supabase } = useSupabase()
@@ -30,6 +31,11 @@ onMounted(async () => {
   const { data: cData, error: cErr } = await supabase.from('app_config').select('*')
   console.log('[SplitPay Diagnostic] DB App Config Select Result:', cData, cErr)
 })
+
+const handleRefresh = async () => {
+  await actions.fetchGroups()
+  await actions.fetchProfiles()
+}
 
 const formatEuro = (amount) => {
   const val = parseFloat(amount || 0)
@@ -98,6 +104,7 @@ const handleBackdropClick = (event) => {
 </script>
 
 <template>
+  <PullToRefresh :loading="state.loading" :on-refresh="handleRefresh">
   <div class="space-y-6">
     <!-- Header Greeting -->
     <div class="flex items-center justify-between">
@@ -180,6 +187,7 @@ const handleBackdropClick = (event) => {
       </form>
     </BaseModal>
   </div>
+  </PullToRefresh>
 </template>
 
 <style scoped>

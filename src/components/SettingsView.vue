@@ -8,6 +8,12 @@ import BaseButton from './ui/BaseButton.vue'
 import BaseCard from './ui/BaseCard.vue'
 import BaseInput from './ui/BaseInput.vue'
 import ErrorBanner from './ui/ErrorBanner.vue'
+import PullToRefresh from './ui/PullToRefresh.vue'
+
+const handleRefresh = () => {
+  // Settings are local — just re-sync the form fields from state
+  syncFields()
+}
 
 const router = useRouter()
 const { t } = useI18n()
@@ -80,6 +86,7 @@ const handleLogout = async () => {
 </script>
 
 <template>
+  <PullToRefresh :loading="false" :on-refresh="handleRefresh">
   <div class="py-8 flex justify-center">
     <BaseCard class="w-full max-w-2xl p-6">
       <!-- Header -->
@@ -133,7 +140,7 @@ const handleLogout = async () => {
       </form>
     </BaseCard>
   </div>
-
+  </PullToRefresh>
 </template>
 
 <style scoped>

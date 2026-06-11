@@ -6,6 +6,7 @@ import { state, actions } from '../store'
 import BaseButton from './ui/BaseButton.vue'
 import BaseCard from './ui/BaseCard.vue'
 import ErrorBanner from './ui/ErrorBanner.vue'
+import PullToRefresh from './ui/PullToRefresh.vue'
 
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -31,9 +32,14 @@ const handleImpersonate = async (profile) => {
   await actions.impersonateUser(profile)
   router.push('/')
 }
+
+const handleRefresh = async () => {
+  await actions.fetchAdminProfiles()
+}
 </script>
 
 <template>
+  <PullToRefresh :loading="state.loading" :on-refresh="handleRefresh">
   <div class="py-8">
     <div class="mb-6">
       <router-link to="/" class="text-sm font-semibold text-base-content/70">&larr; {{ $t('common.backToDashboard') }}</router-link>
@@ -90,7 +96,7 @@ const handleImpersonate = async (profile) => {
       </div>
     </BaseCard>
   </div>
-
+  </PullToRefresh>
 </template>
 
 <style scoped>

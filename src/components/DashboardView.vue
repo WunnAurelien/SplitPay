@@ -113,7 +113,12 @@ const handleBackdropClick = (event) => {
         <p class="text-sm text-base-content/70">{{ $t('dashboard.subtitle') }}</p>
       </div>
       <BaseButton @click="openCreateModal" variant="primary">
-        <span class="mr-2">+</span> {{ $t('dashboard.createGroupBtn') }}
+        <span class="inline-flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          {{ $t('dashboard.createGroupBtn') }}
+        </span>
       </BaseButton>
     </div>
 

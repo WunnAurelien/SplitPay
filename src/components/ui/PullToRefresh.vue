@@ -101,7 +101,7 @@ const onTouchEnd = async () => {
   if (pullDistance.value >= props.threshold && pullState.value !== 'loading') {
     // Trigger refresh
     pullState.value = 'loading'
-    pullDistance.value = props.threshold / 2 // Keep a small indicator visible
+    pullDistance.value = props.threshold // Keep enough space for the loading indicator
 
     try {
       await props.onRefresh()
@@ -243,7 +243,7 @@ defineExpose({ triggerRefresh })
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 8px 8px;
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -254,6 +254,7 @@ defineExpose({ triggerRefresh })
   font-weight: 600;
   box-shadow: var(--glass-shadow);
   margin-top: 12px;
+  margin-bottom: 12px;
 }
 
 .pull-spinner {
@@ -286,6 +287,6 @@ defineExpose({ triggerRefresh })
   will-change: transform;
   position: relative;
   z-index: 1;
-  background: var(--bg-primary);
+  background: transparent;
 }
 </style>

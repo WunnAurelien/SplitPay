@@ -473,7 +473,7 @@ const actions = {
       // So we can select '*' from groups and it returns only their groups.
       const { data, error } = await supabase
         .from('groups')
-        .select('*, group_members(*, profiles(*))')
+        .select('*, group_members(*, profiles(*)), expenses(*, expense_beneficiaries(*, profiles(*)))')
       
       if (error) throw error
 
@@ -826,7 +826,7 @@ const userGlobalStats = computed(() => {
     // If the group has members/expenses info, we can aggregate
     // Let's compute settlements for this group
     const members = group.group_members?.map(gm => gm.profiles).filter(Boolean) || []
-    const expenses = getTableExpenses(group.id)
+    const expenses = group.expenses || []
     const settlements = calculateSettlements(members, expenses)
     const myBalance = settlements.balances?.find(b => b.profileId === state.session?.user?.id)
     if (myBalance) {
@@ -842,29 +842,4 @@ const userGlobalStats = computed(() => {
   }
 })
 
-// Helper for local mock storage global computations
-const getTableExpenses = (groupId) => {
-  const allExpenses = JSON.parse(localStorage.getItem('splitpay_expenses') || '[]')
-  const beneficiaries = JSON.parse(localStorage.getItem('splitpay_expense_beneficiaries') || '[]')
-  const profiles = JSON.parse(localStorage.getItem('splitpay_profiles') || '[]')
-
-  return allExpenses
-    .filter(e => e.group_id === groupId)
-    .map(expense => {
-      const bList = beneficiaries
-        .filter(b => b.expense_id === expense.id)
-        .map(b => {
-          const profile = profiles.find(p => p.id === b.profile_id);
-          return { ...b, profiles: profile };
-        });
-      
-      const payer = profiles.find(p => p.id === expense.paid_by);
-      return {
-        ...expense,
-        expense_beneficiaries: bList,
-        profiles: payer
-      };
-    })
-}
-
-export { state, isApproved, activeGroupCalculations, userGlobalStats, calculateSettlements, getTableExpenses, actions }
+export { state, isApproved, activeGroupCalculations, userGlobalStats, calculateSettlements, actions }

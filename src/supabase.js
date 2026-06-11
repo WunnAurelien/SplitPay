@@ -73,26 +73,49 @@ if (!useMock) {
       data = data.filter(item => this.filters.every(f => f(item)));
 
       // Perform custom joins if requested (hardcoded to emulate Supabase DDL joins)
-      if (this.table === 'groups' && this.selectFields.includes('group_members')) {
-        const members = getTable('group_members');
+      if (this.table === 'groups') {
         const profiles = getTable('profiles');
         data = data.map(group => {
-          // Join group_members
-          const groupMembers = members
-            .filter(m => m.group_id === group.id)
-            .map(m => {
-              const profile = profiles.find(p => p.id === m.profile_id);
-              return { ...m, profiles: profile };
-            });
-          
-          // Join creator profile
+          let groupMembers = undefined;
+          if (this.selectFields.includes('group_members')) {
+            const members = getTable('group_members');
+            groupMembers = members
+              .filter(m => m.group_id === group.id)
+              .map(m => {
+                const profile = profiles.find(p => p.id === m.profile_id);
+                return { ...m, profiles: profile };
+              });
+          }
+
+          let expenses = undefined;
+          if (this.selectFields.includes('expenses')) {
+            const allExpenses = getTable('expenses');
+            const beneficiaries = getTable('expense_beneficiaries');
+            expenses = allExpenses
+              .filter(e => e.group_id === group.id)
+              .map(expense => {
+                const bList = beneficiaries
+                  .filter(b => b.expense_id === expense.id)
+                  .map(b => {
+                    const profile = profiles.find(p => p.id === b.profile_id);
+                    return { ...b, profiles: profile };
+                  });
+                const payer = profiles.find(p => p.id === expense.paid_by);
+                return {
+                  ...expense,
+                  expense_beneficiaries: bList,
+                  profiles: payer
+                };
+              });
+          }
+
           const creator = profiles.find(p => p.id === group.created_by);
 
-          return {
-            ...group,
-            group_members: groupMembers,
-            profiles: creator
-          };
+          const result = { ...group };
+          if (groupMembers !== undefined) result.group_members = groupMembers;
+          if (expenses !== undefined) result.expenses = expenses;
+          result.profiles = creator;
+          return result;
         });
       }
 

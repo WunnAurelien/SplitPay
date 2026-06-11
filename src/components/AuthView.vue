@@ -46,13 +46,6 @@ const handleAuth = async () => {
     return
   }
 
-  if (!isLogin.value) {
-    const pLink = paymentLink.value.trim()
-    if (pLink && !pLink.includes('paypal.me') && !pLink.includes('paypal.com')) {
-      errorMsg.value = t('auth.paymentLinkInvalid')
-      return
-    }
-  }
 
   isLoading.value = true
   
@@ -214,14 +207,6 @@ const goToLoginAfterSignUp = () => {
               :placeholder="t('auth.displayNamePlaceholder')"
             />
 
-            <BaseInput
-              type="url"
-              id="payment-link"
-              v-model="paymentLink"
-              :label="$t('auth.paymentLinkLabel')"
-              :placeholder="t('auth.paymentLinkPlaceholder')"
-            />
-            <p class="mt-1 text-sm text-base-content/60">{{ $t('auth.paymentLinkHint') }}</p>
           </template>
 
           <!-- Bouton submit -->

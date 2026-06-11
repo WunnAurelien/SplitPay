@@ -86,7 +86,7 @@ const handleJoin = async () => {
     <div class="glow-sphere purple"></div>
     <div class="glow-sphere cyan"></div>
 
-    <BaseCard class="w-full max-w-md p-8 text-center">
+    <BaseCard class="w-full max-w-md p-8 text-center relative z-10">
       <!-- Loading state -->
       <div v-if="isLoading" class="flex flex-col items-center">
         <span class="spinner"></span>
@@ -126,7 +126,7 @@ const handleJoin = async () => {
 
 <style scoped>
 /* Keep decorative spheres and spinner */
-.glow-sphere { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.15; z-index: 1; }
+.glow-sphere { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.15; z-index: 1; pointer-events: none; }
 .glow-sphere.purple { width: 300px; height: 300px; background-color: var(--accent-purple); top: 10%; left: 20%; }
 .glow-sphere.cyan { width: 250px; height: 250px; background-color: var(--accent-cyan); bottom: 15%; right: 25%; }
 .spinner { width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.12); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 0.8s linear infinite; }

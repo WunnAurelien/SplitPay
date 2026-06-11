@@ -237,7 +237,10 @@ function setupGroupChannel(supabase, groupId, store) {
       async (payload) => {
         console.log('[Realtime] Expense Beneficiary change in group', groupId, ':', payload.eventType)
         // Les beneficiaries changent les calculs financiers ⟶ refresh complet
-        await store.actions.fetchGroupDetails(groupId)
+        // On ne refresh que si la dépense concernée appartient au groupe actif
+        if (store.state.activeGroup?.expenses.some(e => e.id === payload.new?.expense_id || e.id === payload.old?.expense_id)) {
+          await store.actions.fetchGroupDetails(groupId)
+        }
       }
     )
     .subscribe((status) => {

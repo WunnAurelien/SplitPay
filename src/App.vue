@@ -63,6 +63,10 @@ watch(() => state.alertState?.isOpen, (isOpen) => {
   }
 })
 
+watch(locale, (newLocale) => {
+  document.documentElement.setAttribute('lang', newLocale)
+}, { immediate: true })
+
 onMounted(async () => {
   // Détection du hash recovery AVANT Vue Router ne le consomme
   // Le SDK Supabase parse le hash fragment et établit la session automatiquement
@@ -226,7 +230,7 @@ const stopImpersonating = async () => {
     </main>
 
     <!-- Confirm Dialog Modal -->
-    <BaseModal ref="confirmDialogRef" :title="state.confirmState.title" :show-close="false">
+    <BaseModal ref="confirmDialogRef" :title="state.confirmState.title" :show-close="false" @close="state.confirmState.reject?.()">
       <p>{{ state.confirmState.message }}</p>
       <template #actions>
         <BaseButton @click="state.confirmState.reject?.()" variant="secondary" size="sm">{{ state.confirmState.cancelText }}</BaseButton>
@@ -235,7 +239,7 @@ const stopImpersonating = async () => {
     </BaseModal>
 
     <!-- Alert Dialog Modal -->
-    <BaseModal ref="alertDialogRef" :title="state.alertState.title" :show-close="false">
+    <BaseModal ref="alertDialogRef" :title="state.alertState.title" :show-close="false" @close="state.alertState.resolve?.()">
       <p>{{ state.alertState.message }}</p>
       <template #actions>
         <BaseButton @click="state.alertState.resolve?.()" variant="primary" size="sm">{{ state.alertState.okText }}</BaseButton>

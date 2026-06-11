@@ -93,7 +93,7 @@ begin
     );
     return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = '';
 
 -- Recreate trigger if exists
 drop trigger if exists on_auth_user_created on auth.users;
@@ -126,7 +126,7 @@ begin
 
     return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = '';
 
 -- Recreate trigger if exists
 drop trigger if exists before_profile_update on public.profiles;
@@ -198,8 +198,14 @@ $$;
 
 
 -- App Config Policies
-create policy "Allow public read access to app config"
+create policy "Allow public read access to non-sensitive app config"
     on public.app_config for select
+    to anon
+    using (key <> 'admin_uuid');
+
+create policy "Allow authenticated read access to all app config"
+    on public.app_config for select
+    to authenticated
     using (true);
 
 create policy "Allow admin full access to app config"
@@ -218,7 +224,7 @@ begin
         where id = user_id and status = 'approved'
     );
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = '';
 
 -- Profiles Policies
 create policy "Allow users to read approved profiles and their own profile"
@@ -231,7 +237,9 @@ create policy "Allow users to read approved profiles and their own profile"
 
 create policy "Allow users to update their own profiles"
     on public.profiles for update
-    using (auth.uid() = id);
+    to authenticated
+    using (auth.uid() = id)
+    with check (auth.uid() = id);
 
 create policy "Allow admin full control over profiles"
     on public.profiles for all
@@ -454,13 +462,31 @@ $$;
 -- Grant schema usage to standard API roles
 grant usage on schema public to anon, authenticated, service_role;
 
--- Grant table CRUD permissions
-grant select, insert, update, delete on public.app_config to anon, authenticated, service_role;
-grant select, insert, update, delete on public.profiles to anon, authenticated, service_role;
-grant select, insert, update, delete on public.groups to anon, authenticated, service_role;
-grant select, insert, update, delete on public.group_members to anon, authenticated, service_role;
-grant select, insert, update, delete on public.expenses to anon, authenticated, service_role;
-grant select, insert, update, delete on public.expense_beneficiaries to anon, authenticated, service_role;
+-- App Config table grants
+grant select on public.app_config to anon;
+grant select, insert, update, delete on public.app_config to authenticated, service_role;
+
+-- Profiles table grants
+grant select on public.profiles to anon;
+grant select, insert, update, delete on public.profiles to authenticated, service_role;
+
+-- Groups and other tables grants (anon has NO access, authenticated and service_role have full access)
+grant select, insert, update, delete on public.groups to authenticated, service_role;
+grant select, insert, update, delete on public.group_members to authenticated, service_role;
+grant select, insert, update, delete on public.expenses to authenticated, service_role;
+grant select, insert, update, delete on public.expense_beneficiaries to authenticated, service_role;
 
 -- Grant sequence usage for auto-increment keys
-grant usage, select on all sequences in schema public to anon, authenticated, service_role;
+grant usage, select on all sequences in schema public to authenticated, service_role;
+
+-- ==========================================
+-- REALTIME PUBLICATION CONFIGURATION
+-- ==========================================
+
+-- Enable Realtime for the tables by adding them to the supabase_realtime publication
+alter publication supabase_realtime add table public.groups;
+alter publication supabase_realtime add table public.group_members;
+alter publication supabase_realtime add table public.expenses;
+alter publication supabase_realtime add table public.expense_beneficiaries;
+alter publication supabase_realtime add table public.profiles;
+

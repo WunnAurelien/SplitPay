@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { state, userGlobalStats, calculateSettlements, getTableExpenses, actions } from '../store'
+import { state, userGlobalStats, calculateSettlements, actions } from '../store'
 import { useSupabase } from '../supabase'
 import BaseButton from './ui/BaseButton.vue'
 import BaseModal from './ui/BaseModal.vue'
@@ -40,7 +40,7 @@ const formatEuro = (amount) => {
 
 const getGroupBalanceText = (group) => {
   const members = group.group_members?.map(gm => gm.profiles).filter(Boolean) || []
-  const expenses = getTableExpenses(group.id)
+  const expenses = group.expenses || []
   const settlements = calculateSettlements(members, expenses)
   const myBalance = settlements.balances?.find(b => b.profileId === state.session?.user?.id)
 

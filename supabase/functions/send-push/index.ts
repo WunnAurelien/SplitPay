@@ -14,6 +14,8 @@ type NotificationParams = {
   joinerName?: string;
   creditorName?: string;
   description?: string;
+  deleterName?: string;
+  memberName?: string;
   [key: string]: any;
 };
 
@@ -46,6 +48,22 @@ const translations: Record<string, Record<string, { title: string; body: (params
     request_repayment: {
       title: "Demande de remboursement",
       body: (p) => `${p.senderName || 'Quelqu\'un'} vous demande un remboursement de ${p.amount || '0.00'} € dans le groupe "${p.groupName || ''}".`
+    },
+    settlement_declined: {
+      title: "Remboursement refusé",
+      body: (p) => `${p.creditorName || 'Quelqu\'un'} a refusé votre remboursement de ${p.amount || '0.00'} € dans le groupe "${p.groupName || ''}".`
+    },
+    expense_deleted: {
+      title: "Dépense supprimée",
+      body: (p) => `${p.deleterName || 'Quelqu\'un'} a supprimé la dépense "${p.description || ''}" de ${p.amount || '0.00'} € dans le groupe "${p.groupName || ''}".`
+    },
+    member_left: {
+      title: "Membre parti",
+      body: (p) => `${p.memberName || 'Quelqu\'un'} a quitté le groupe "${p.groupName || ''}".`
+    },
+    removed_from_group: {
+      title: "Retiré du groupe",
+      body: (p) => `Vous avez été retiré du groupe "${p.groupName || ''}".`
     }
   },
   en: {
@@ -76,6 +94,22 @@ const translations: Record<string, Record<string, { title: string; body: (params
     request_repayment: {
       title: "Repayment Request",
       body: (p) => `${p.senderName || 'Someone'} is requesting a repayment of €${p.amount || '0.00'} in the group "${p.groupName || ''}".`
+    },
+    settlement_declined: {
+      title: "Settlement Declined",
+      body: (p) => `${p.creditorName || 'Someone'} declined your repayment of €${p.amount || '0.00'} in the group "${p.groupName || ''}".`
+    },
+    expense_deleted: {
+      title: "Expense Deleted",
+      body: (p) => `${p.deleterName || 'Someone'} deleted the expense "${p.description || ''}" of €${p.amount || '0.00'} in the group "${p.groupName || ''}".`
+    },
+    member_left: {
+      title: "Member Left",
+      body: (p) => `${p.memberName || 'Someone'} left the group "${p.groupName || ''}".`
+    },
+    removed_from_group: {
+      title: "Removed from Group",
+      body: (p) => `You were removed from the group "${p.groupName || ''}".`
     }
   }
 }

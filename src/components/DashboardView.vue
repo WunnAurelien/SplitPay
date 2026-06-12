@@ -1,8 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { state, userGlobalStats, calculateSettlements, actions } from '../store'
 import { useSupabase } from '../supabase'
+import { isRunningAsPWA } from '../usePWA'
 import BaseButton from './ui/BaseButton.vue'
 import BaseModal from './ui/BaseModal.vue'
 import BaseCard from './ui/BaseCard.vue'
@@ -10,12 +12,37 @@ import BaseInput from './ui/BaseInput.vue'
 import ErrorBanner from './ui/ErrorBanner.vue'
 import PullToRefresh from './ui/PullToRefresh.vue'
 
+const router = useRouter()
 const { t, locale } = useI18n()
 const { supabase } = useSupabase()
 const newGroupName = ref('')
 const errorMsg = ref('')
 const isLoading = ref(false)
 const createGroupDialog = ref(null)
+
+const checkClipboardAndJoin = async () => {
+  try {
+    const text = await navigator.clipboard.readText()
+    const match = text.match(/\/group\/([^\/]+)\/join/)
+    if (match && match[1]) {
+      const groupId = match[1]
+      router.push(`/group/${groupId}/join`)
+    } else {
+      await actions.alert({
+        title: t('dashboard.clipboardNoLinkTitle') || 'Aucun lien détecté',
+        message: t('dashboard.clipboardNoLinkMsg') || 'Aucun lien de groupe SplitPay valide n\'a été détecté dans votre presse-papiers.',
+        okText: t('common.ok') || 'OK'
+      })
+    }
+  } catch (err) {
+    console.error('Clipboard read failed:', err)
+    await actions.alert({
+      title: t('dashboard.clipboardErrorTitle') || 'Accès refusé',
+      message: t('dashboard.clipboardErrorMsg') || 'Impossible de lire le presse-papiers. Veuillez accorder la permission de lecture ou vérifier votre lien.',
+      okText: t('common.ok') || 'OK'
+    })
+  }
+}
 
 onMounted(async () => {
   await actions.fetchGroups()
@@ -108,6 +135,22 @@ const handleBackdropClick = (event) => {
           </svg>
           {{ $t('dashboard.createGroupBtn') }}
         </span>
+      </BaseButton>
+    </div>
+
+    <!-- PWA Join from Clipboard (only visible in standalone PWA mode) -->
+    <div v-if="isRunningAsPWA()" class="bg-base-200/50 border border-base-300 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm animate-fade-in">
+      <div class="flex-1">
+        <h3 class="text-sm font-semibold flex items-center gap-1.5 text-primary">
+          <span>📋</span>
+          {{ $t('dashboard.clipboardJoinTitle') }}
+        </h3>
+        <p class="text-xs text-base-content/70 mt-0.5">
+          {{ $t('dashboard.clipboardJoinDesc') }}
+        </p>
+      </div>
+      <BaseButton @click="checkClipboardAndJoin" variant="secondary" size="sm" class="shrink-0">
+        {{ $t('dashboard.clipboardJoinBtn') }}
       </BaseButton>
     </div>
 

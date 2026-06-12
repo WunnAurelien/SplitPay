@@ -31,8 +31,8 @@
   "auth": {
     "signInTitle": "Se connecter à SplitPay",
     "signUpTitle": "Créer un compte",
-    "signInSubtitle": "Partagez les factures, pas les amitiés.",
-    "signUpSubtitle": "Commencez à partager vos dépenses en toute simplicité.",
+    "signInSubtitle": "Partagez vos dépenses, préservez vos amitiés.",
+    "signUpSubtitle": "Créez vos groupes et partagez vos factures en toute simplicité.",
     "emailLabel": "Adresse e-mail",
     "emailPlaceholder": "nom{'@'}exemple.com",
     "passwordLabel": "Mot de passe",
@@ -88,7 +88,14 @@
     "groupNameLabel": "Nom du groupe",
     "groupNamePlaceholder": "ex : Voyage au ski 2026",
     "createGroupSubmit": "Créer le groupe",
-    "createGroupError": "Échec de la création du groupe."
+    "createGroupError": "Échec de la création du groupe.",
+    "clipboardJoinTitle": "Rejoindre depuis le presse-papiers",
+    "clipboardJoinDesc": "Si vous avez copié un lien d'invitation depuis vos messages, cliquez ci-dessous pour rejoindre le groupe dans l'application.",
+    "clipboardJoinBtn": "Vérifier le presse-papiers",
+    "clipboardNoLinkTitle": "Aucun lien détecté",
+    "clipboardNoLinkMsg": "Aucun lien de groupe SplitPay valide n'a été détecté dans votre presse-papiers.",
+    "clipboardErrorTitle": "Accès refusé",
+    "clipboardErrorMsg": "Impossible de lire le presse-papiers. Veuillez accorder la permission ou vérifier votre lien."
   },
   "settings": {
     "profileSettings": "Paramètres du profil",
@@ -231,6 +238,9 @@
     "owesMessage": "<strong>{from}</strong> doit <span class=\"tx-amount\">{amount}</span> à <strong>{to}</strong>",
     "inviteBtn": "Copier l'invitation",
     "inviteCopied": "Lien copié !",
+    "pwaHandoffText": "Vous préférez utiliser l'application installée ?",
+    "pwaCopyBtn": "Copier le lien pour l'application",
+    "pwaCopiedBtn": "Lien copié ! Ouvrez SplitPay",
     "joinTitle": "Rejoindre le groupe",
     "joinInvitation": "Vous avez été invité à rejoindre le groupe :",
     "joinConfirmBtn": "Rejoindre le groupe",
@@ -304,6 +314,14 @@
     "newMemberTitle": "Nouveau membre",
     "newMemberBody": "{joinerName} a rejoint le groupe \"{groupName}\".",
     "accountApprovedTitle": "Compte approuvé",
-    "accountApprovedBody": "Votre compte SplitPay a été approuvé. Vous pouvez désormais créer et rejoindre des groupes !"
+    "accountApprovedBody": "Votre compte SplitPay a été approuvé. Vous pouvez désormais créer et rejoindre des groupes !",
+    "settlementDeclinedTitle": "Remboursement refusé",
+    "settlementDeclinedBody": "{creditorName} a refusé votre remboursement de {amount} € dans le groupe \"{groupName}\".",
+    "expenseDeletedTitle": "Dépense supprimée",
+    "expenseDeletedBody": "{deleterName} a supprimé la dépense \"{description}\" de {amount} € dans le groupe \"{groupName}\".",
+    "memberLeftTitle": "Membre parti",
+    "memberLeftBody": "{memberName} a quitté le groupe \"{groupName}\".",
+    "removedFromGroupTitle": "Retiré du groupe",
+    "removedFromGroupBody": "Vous avez été retiré du groupe \"{groupName}\"."
   }
 }

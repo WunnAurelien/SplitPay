@@ -65,6 +65,48 @@ const fetchPendingGroupName = async () => {
   }
 }
 
+const checkClipboardAndRegisterInvite = async () => {
+  try {
+    const text = await navigator.clipboard.readText()
+    const match = text.match(/\/group\/([^\/]+)\/join/)
+    if (match && match[1]) {
+      const groupId = match[1]
+      
+      // Save invite details
+      localStorage.setItem('splitpay_pending_join_group_id', groupId)
+      localStorage.setItem('splitpay_pending_join_status', 'accepted')
+      localStorage.setItem('splitpay_redirect_after_auth', `/group/${groupId}/join`)
+      
+      pendingJoinGroupId.value = groupId
+      pendingJoinStatus.value = 'accepted'
+      pendingRedirectUrl.value = `/group/${groupId}/join`
+      hasPendingRedirect.value = true
+      
+      // Fetch the group name
+      await fetchPendingGroupName()
+      
+      await actions.alert({
+        title: t('group.inviteAcceptedTitle') || 'Invitation acceptée',
+        message: t('group.inviteAcceptedPendingMsg', { name: pendingGroupName.value }) || `Vous rejoindrez le groupe "${pendingGroupName.value}" automatiquement dès que votre compte sera approuvé.`,
+        okText: t('common.ok') || 'OK'
+      })
+    } else {
+      await actions.alert({
+        title: t('dashboard.clipboardNoLinkTitle') || 'Aucun lien détecté',
+        message: t('dashboard.clipboardNoLinkMsg') || 'Aucun lien d\'invitation SplitPay valide n\'a été détecté dans votre presse-papiers.',
+        okText: t('common.ok') || 'OK'
+      })
+    }
+  } catch (err) {
+    console.error('Clipboard read failed:', err)
+    await actions.alert({
+      title: t('dashboard.clipboardErrorTitle') || 'Accès refusé',
+      message: t('dashboard.clipboardErrorMsg') || 'Impossible de lire le presse-papiers. Veuillez accorder la permission de lecture ou vérifier votre lien.',
+      okText: t('common.ok') || 'OK'
+    })
+  }
+}
+
 const syncFields = () => {
   if (state.profile) {
     username.value = state.profile.username || ''
@@ -439,6 +481,26 @@ const handleLogout = async () => {
                 <div class="flex justify-end">
                   <BaseButton :to="pendingRedirectUrl || `/group/${pendingJoinGroupId}/join`" variant="primary" size="sm">
                     {{ $t('settings.viewInviteBtn') || 'Voir l\'invitation' }}
+                  </BaseButton>
+                </div>
+              </div>
+
+              <!-- Case 3: No invite in local storage, allow detection from clipboard -->
+              <div v-else class="mt-3 p-4 bg-base-200/50 border border-base-300 rounded-xl text-sm flex flex-col gap-3">
+                <div class="flex items-start gap-3">
+                  <span class="text-lg">📋</span>
+                  <div class="leading-relaxed text-base-content/85 flex-1">
+                    <p class="font-semibold text-primary">
+                      {{ $t('dashboard.clipboardJoinTitle') }}
+                    </p>
+                    <p class="text-xs text-base-content/70 mt-0.5">
+                      {{ $t('dashboard.clipboardJoinDesc') }}
+                    </p>
+                  </div>
+                </div>
+                <div class="flex justify-end">
+                  <BaseButton type="button" @click="checkClipboardAndRegisterInvite" variant="secondary" size="sm">
+                    {{ $t('dashboard.clipboardJoinBtn') }}
                   </BaseButton>
                 </div>
               </div>

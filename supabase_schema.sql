@@ -57,7 +57,8 @@ create table if not exists public.expenses (
     group_id uuid references public.groups(id) on delete cascade not null,
     description text not null,
     amount numeric(12, 2) not null check (amount > 0),
-    paid_by uuid references public.profiles(id) on delete restrict not null,
+    paid_by uuid references public.profiles(id) on delete set null,
+    paid_by_name text,
     is_pending boolean default false not null,
     deleted_at timestamp with time zone default null,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -137,6 +138,24 @@ drop trigger if exists before_profile_update on public.profiles;
 create trigger before_profile_update
     before update on public.profiles
     for each row execute procedure public.check_profile_update();
+
+-- Trigger to automatically set paid_by_name on expenses insert/update
+create or replace function public.set_expense_paid_by_name()
+returns trigger as $$
+begin
+    if new.paid_by is not null then
+        select coalesce(username, email) into new.paid_by_name
+        from public.profiles
+        where id = new.paid_by;
+    end if;
+    return new;
+end;
+$$ language plpgsql security definer set search_path = '';
+
+drop trigger if exists before_expense_insert_update on public.expenses;
+create trigger before_expense_insert_update
+    before insert or update of paid_by on public.expenses
+    for each row execute procedure public.set_expense_paid_by_name();
 
 
 -- ==========================================

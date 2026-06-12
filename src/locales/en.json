@@ -31,8 +31,8 @@
   "auth": {
     "signInTitle": "Sign in to SplitPay",
     "signUpTitle": "Create an Account",
-    "signInSubtitle": "Share bills, not friendships.",
-    "signUpSubtitle": "Start splitting expenses with ease.",
+    "signInSubtitle": "Share expenses, preserve friendships.",
+    "signUpSubtitle": "Create groups and split bills with ease.",
     "emailLabel": "Email Address",
     "emailPlaceholder": "name{'@'}example.com",
     "passwordLabel": "Password",
@@ -88,7 +88,14 @@
     "groupNameLabel": "Group Name",
     "groupNamePlaceholder": "e.g., Ski Trip 2026",
     "createGroupSubmit": "Create Group",
-    "createGroupError": "Failed to create group."
+    "createGroupError": "Failed to create group.",
+    "clipboardJoinTitle": "Join from Clipboard",
+    "clipboardJoinDesc": "If you copied a join link from your messages, click below to open and join it inside this app.",
+    "clipboardJoinBtn": "Check Clipboard",
+    "clipboardNoLinkTitle": "No Link Found",
+    "clipboardNoLinkMsg": "No valid SplitPay invitation link was found in your clipboard.",
+    "clipboardErrorTitle": "Access Denied",
+    "clipboardErrorMsg": "Unable to read the clipboard. Please grant permission or verify your link."
   },
   "settings": {
     "profileSettings": "Profile Settings",
@@ -231,6 +238,9 @@
     "owesMessage": "<strong>{from}</strong> owes <strong>{to}</strong> <span class=\"tx-amount\">{amount}</span>",
     "inviteBtn": "Copy Invite Link",
     "inviteCopied": "Link Copied!",
+    "pwaHandoffText": "Prefer to use the installed app?",
+    "pwaCopyBtn": "Copy link for the app",
+    "pwaCopiedBtn": "Link copied! Open SplitPay",
     "joinTitle": "Join Group",
     "joinInvitation": "You have been invited to join the group:",
     "joinConfirmBtn": "Join Group",
@@ -304,6 +314,14 @@
     "newMemberTitle": "New Member",
     "newMemberBody": "{joinerName} joined the group \"{groupName}\".",
     "accountApprovedTitle": "Account Approved",
-    "accountApprovedBody": "Your SplitPay account has been approved. You can now create and join groups!"
+    "accountApprovedBody": "Your SplitPay account has been approved. You can now create and join groups!",
+    "settlementDeclinedTitle": "Settlement Declined",
+    "settlementDeclinedBody": "{creditorName} declined your repayment of €{amount} in the group \"{groupName}\".",
+    "expenseDeletedTitle": "Expense Deleted",
+    "expenseDeletedBody": "{deleterName} deleted the expense \"{description}\" of €{amount} in the group \"{groupName}\".",
+    "memberLeftTitle": "Member Left",
+    "memberLeftBody": "{memberName} left the group \"{groupName}\".",
+    "removedFromGroupTitle": "Removed from Group",
+    "removedFromGroupBody": "You were removed from the group \"{groupName}\"."
   }
 }

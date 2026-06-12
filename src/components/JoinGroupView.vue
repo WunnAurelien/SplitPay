@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useSupabase } from '../supabase'
 import { state, actions } from '../store'
+import { isRunningAsPWA } from '../usePWA'
 import BaseButton from './ui/BaseButton.vue'
 import BaseCard from './ui/BaseCard.vue'
 import ErrorBanner from './ui/ErrorBanner.vue'
@@ -12,6 +13,19 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { supabase } = useSupabase()
+
+const isCopied = ref(false)
+const copyAndOpenPWA = async () => {
+  try {
+    await navigator.clipboard.writeText(window.location.href)
+    isCopied.value = true
+    setTimeout(() => {
+      isCopied.value = false
+    }, 4000)
+  } catch (err) {
+    console.error('Failed to copy link:', err)
+  }
+}
 
 const groupId = route.params.id
 const groupName = ref('')
@@ -100,7 +114,7 @@ const handleCancel = () => {
 </script>
 
 <template>
-  <div class="min-h-[calc(100vh-120px)] flex items-center justify-center relative">
+  <div class="min-h-[calc(100dvh-120px)] flex items-center justify-center relative">
     <div class="glow-sphere purple"></div>
     <div class="glow-sphere cyan"></div>
 
@@ -134,6 +148,17 @@ const handleCancel = () => {
           </BaseButton>
           <BaseButton @click="handleCancel" variant="secondary" class="w-full">
             {{ $t('common.cancel') }}
+          </BaseButton>
+        </div>
+
+        <!-- PWA Handoff for iOS/Android Safari browser -->
+        <div v-if="!isRunningAsPWA()" class="w-full mt-6 pt-6 border-t border-base-content/10">
+          <p class="text-xs text-base-content/75 mb-3">
+            {{ $t('group.pwaHandoffText') }}
+          </p>
+          <BaseButton @click="copyAndOpenPWA" variant="secondary" size="sm" class="w-full flex items-center justify-center gap-2" :class="isCopied ? 'bg-success/10 border-success/20 text-success' : ''">
+            <span>{{ isCopied ? $t('group.pwaCopiedBtn') : $t('group.pwaCopyBtn') }}</span>
+            <span v-if="isCopied">📱</span>
           </BaseButton>
         </div>
       </div>

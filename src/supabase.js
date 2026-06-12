@@ -175,7 +175,14 @@ if (!useMock) {
       const inserted = rows.map(r => {
         const newRow = { ...r };
         if (this.table === 'groups' && !newRow.id) newRow.id = crypto.randomUUID();
-        if (this.table === 'expenses' && !newRow.id) newRow.id = crypto.randomUUID();
+        if (this.table === 'expenses') {
+          if (!newRow.id) newRow.id = crypto.randomUUID();
+          if (newRow.paid_by) {
+            const profiles = getTable('profiles');
+            const profile = profiles.find(p => p.id === newRow.paid_by);
+            newRow.paid_by_name = profile ? (profile.username || profile.email) : '';
+          }
+        }
         if (!newRow.created_at) newRow.created_at = new Date().toISOString();
         return newRow;
       });
@@ -506,6 +513,16 @@ if (!useMock) {
         // Delete from expense_beneficiaries
         const beneficiaries = getTable('expense_beneficiaries');
         saveTable('expense_beneficiaries', beneficiaries.filter(b => b.profile_id !== targetUserId));
+
+        // Set paid_by to null on expenses table for deleted profile
+        const expenses = getTable('expenses');
+        const updatedExpenses = expenses.map(e => {
+          if (e.paid_by === targetUserId) {
+            return { ...e, paid_by: null };
+          }
+          return e;
+        });
+        saveTable('expenses', updatedExpenses);
 
         return { data: { success: true }, error: null };
       }

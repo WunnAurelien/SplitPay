@@ -123,9 +123,10 @@ const handleConfirmRepayment = async (expenseId) => {
   }
 }
 
-const getPayerName = (payerId) => {
-  const m = state.activeGroup?.members?.find(mem => mem.id === payerId)
-  return m ? (m.username || m.email) : t('admin.noHandle')
+const getPayerName = (expense) => {
+  if (!expense) return ''
+  const m = state.activeGroup?.members?.find(mem => mem.id === expense.paid_by)
+  return m ? (m.username || m.email) : (expense.paid_by_name || t('admin.noHandle'))
 }
 
 const formatEuro = (amount) => {
@@ -609,7 +610,7 @@ const handleBackdropClick = (dialog, event) => {
             >
               <div class="rep-meta">
                 <div class="rep-title">
-                  <span class="rep-payer-name">{{ getPayerName(rep.paid_by) }}</span>
+                  <span class="rep-payer-name">{{ getPayerName(rep) }}</span>
                   <span class="rep-arrow">➔</span>
                   <span class="rep-receiver-name">
                     {{ rep.expense_beneficiaries?.[0]?.profiles?.username || rep.expense_beneficiaries?.[0]?.profiles?.email || '?' }}
@@ -687,7 +688,7 @@ const handleBackdropClick = (dialog, event) => {
                   <h4 :class="{ 'text-strikethrough': expense.deleted_at }">{{ expense.description }}</h4>
                   <div class="expense-title-meta">
                     <span v-if="expense.deleted_at" class="deleted-badge">{{ $t('group.deleted') }}</span>
-                    <span class="expense-payer">{{ $t('group.paidBy', { name: getPayerName(expense.paid_by) }) }}</span>
+                    <span class="expense-payer">{{ $t('group.paidBy', { name: getPayerName(expense) }) }}</span>
                   </div>
                 </div>
                 <div class="expense-split">

@@ -705,6 +705,22 @@ const actions = {
     state.loading = true
     state.error = null
     try {
+      const group = state.groups.find(g => g.id === groupId) || state.activeGroup
+      const groupName = group?.name || 'Groupe'
+      
+      const memberObj = group?.group_members?.find(m => m.profile_id === profileId)?.profiles
+        || state.activeGroup?.members?.find(m => m.id === profileId)
+      
+      const memberName = memberObj?.username || memberObj?.email || i18n.global.t('admin.noHandle')
+      
+      const otherMemberIds = group?.group_members
+        ?.map(gm => gm.profile_id)
+        ?.filter(id => id !== profileId)
+        || state.activeGroup?.members
+          ?.map(m => m.id)
+          ?.filter(id => id !== profileId)
+        || []
+
       const { error } = await supabase
         .from('group_members')
         .delete()
@@ -714,10 +730,25 @@ const actions = {
       if (error) throw error
       
       if (profileId === state.session.user.id) {
-        // Left the group, redirect dashboard
+        // Left the group, notify other members
+        if (otherMemberIds.length > 0) {
+          await this.sendPushNotification({
+            recipientIds: otherMemberIds,
+            type: 'member_left',
+            params: { memberName, groupName },
+            url: `/SplitPay/`
+          })
+        }
         state.activeGroup = null
         await this.fetchGroups()
       } else {
+        // Removed from the group, notify the removed user
+        await this.sendPushNotification({
+          recipientIds: [profileId],
+          type: 'removed_from_group',
+          params: { groupName },
+          url: `/SplitPay/`
+        })
         await this.fetchGroupDetails(groupId)
       }
     } catch (e) {
@@ -834,6 +865,11 @@ const actions = {
     state.loading = true
     state.error = null
     try {
+      const group = state.groups.find(g => g.id === groupId) || state.activeGroup
+      const groupName = group?.name || 'Groupe'
+      const expense = state.activeGroup?.expenses?.find(e => e.id === expenseId)
+        || group?.expenses?.find(e => e.id === expenseId)
+
       const { error } = await supabase
         .from('expenses')
         .update({ deleted_at: new Date().toISOString() })
@@ -841,6 +877,43 @@ const actions = {
 
       if (error) throw error
       await this.fetchGroupDetails(groupId)
+
+      if (expense) {
+        const description = expense.description
+        const amount = parseFloat(expense.amount || 0).toFixed(2)
+
+        if (expense.is_pending) {
+          // If it was a pending repayment, check if it was declined by the creditor
+          const creditorId = expense.expense_beneficiaries?.[0]?.profile_id
+          const debtorId = expense.paid_by
+          const creditorName = state.profile?.username || state.profile?.email || i18n.global.t('admin.noHandle')
+
+          // Only send if the creditor (or admin) rejected it (debtor did not cancel it themselves)
+          if (creditorId && debtorId && state.session?.user?.id !== debtorId) {
+            await this.sendPushNotification({
+              recipientIds: [debtorId],
+              type: 'settlement_declined',
+              params: { creditorName, amount, groupName },
+              url: `/SplitPay/group/${groupId}`
+            })
+          }
+        } else {
+          // Standard expense deletion: notify other group members
+          const deleterName = state.profile?.username || state.profile?.email || i18n.global.t('admin.noHandle')
+          const otherMemberIds = state.activeGroup?.members
+            ?.map(m => m.id)
+            ?.filter(id => id !== state.session?.user?.id) || []
+
+          if (otherMemberIds.length > 0) {
+            await this.sendPushNotification({
+              recipientIds: otherMemberIds,
+              type: 'expense_deleted',
+              params: { deleterName, description, amount, groupName },
+              url: `/SplitPay/group/${groupId}`
+            })
+          }
+        }
+      }
     } catch (e) {
       this.setError(e)
       throw e

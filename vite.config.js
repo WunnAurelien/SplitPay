@@ -21,6 +21,10 @@ export default defineConfig({
         background_color: '#08090f',
         display: 'standalone',
         start_url: '/SplitPay/',
+        scope: '/SplitPay/',
+        launch_handler: {
+          client_mode: ['navigate-existing', 'auto']
+        },
         id: '/SplitPay/?homescreen=1',
         icons: [
           {

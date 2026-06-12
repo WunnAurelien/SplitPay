@@ -78,7 +78,7 @@ const handleUpdatePassword = async () => {
 </script>
 
 <template>
-  <div class="relative flex min-h-[calc(100vh-120px)] items-center justify-center px-4 py-10">
+  <div class="relative flex min-h-[calc(100dvh-120px)] items-center justify-center px-4 py-10">
     <div class="pointer-events-none absolute -top-12 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-purple-500/10 blur-3xl" />
     <div class="pointer-events-none absolute -bottom-12 right-8 h-48 w-48 rounded-full bg-cyan-400/10 blur-3xl" />
 

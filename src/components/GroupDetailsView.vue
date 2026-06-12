@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { state, activeGroupCalculations, actions } from '../store'
@@ -23,24 +23,51 @@ const groupId = route.params.id
 const { t, locale } = useI18n()
 const { supabase } = useSupabase()
 
-// Modal refs
-const addExpenseDialog = ref(null)
-const addMemberDialog = ref(null)
-const settleUpDialog = ref(null)
-const noteDialog = ref(null)
-const expenseDetailsDialog = ref(null)
+// Modal states (v-model)
+const isAddExpenseOpen = ref(false)
+const isAddMemberOpen = ref(false)
+const isSettleUpOpen = ref(false)
+const isNoteOpen = ref(false)
+const isExpenseDetailsOpen = ref(false)
+const isDeleteConfirmOpen = ref(false)
 
 // Expense Details Modal State
 const selectedExpense = ref(null)
 
 const openExpenseDetails = (expense) => {
   selectedExpense.value = expense
-  expenseDetailsDialog.value.showModal()
+  isExpenseDetailsOpen.value = true
 }
 
 const closeExpenseDetailsModal = () => {
-  expenseDetailsDialog.value.close()
+  isExpenseDetailsOpen.value = false
   selectedExpense.value = null
+}
+
+// Delete Confirm Modal State
+const pendingDelete = ref(null) // { id, description }
+
+const handleDeleteFromDetailsModal = () => {
+  if (!selectedExpense.value) return
+  pendingDelete.value = {
+    id: selectedExpense.value.id,
+    description: selectedExpense.value.description
+  }
+  isExpenseDetailsOpen.value = false
+  isDeleteConfirmOpen.value = true
+}
+
+const handleConfirmDelete = async () => {
+  if (!pendingDelete.value) return
+  const { id } = pendingDelete.value
+  pendingDelete.value = null
+  isDeleteConfirmOpen.value = false
+  await actions.deleteExpense(groupId, id)
+}
+
+const handleCancelDelete = () => {
+  pendingDelete.value = null
+  isDeleteConfirmOpen.value = false
 }
 
 const getBeneficiaryShareAmount = (expense, beneficiary) => {
@@ -222,32 +249,32 @@ const openExpenseModal = () => {
   splitType.value = 'equal'
   initializeCustomParts()
   expenseError.value = ''
-  addExpenseDialog.value.showModal()
+  isAddExpenseOpen.value = true
 }
 
 const closeExpenseModal = () => {
-  addExpenseDialog.value.close()
+  isAddExpenseOpen.value = false
 }
 
 const openMemberModal = () => {
   selectedProfileId.value = ''
   memberError.value = ''
-  addMemberDialog.value.showModal()
+  isAddMemberOpen.value = true
 }
 
 const closeMemberModal = () => {
-  addMemberDialog.value.close()
+  isAddMemberOpen.value = false
 }
 
 const openNoteModal = (member) => {
   selectedNoteMember.value = member
   memberNote.value = member.note || ''
   noteError.value = ''
-  noteDialog.value.showModal()
+  isNoteOpen.value = true
 }
 
 const closeNoteModal = () => {
-  noteDialog.value.close()
+  isNoteOpen.value = false
   selectedNoteMember.value = null
   memberNote.value = ''
 }
@@ -456,31 +483,31 @@ const handleRequestRepayment = async (transaction, idx) => {
   }
 }
 
-// Settle Up Handler (Opens choice dialog)
-const handleSettleUp = (transaction) => {
-  activeSettleTx.value = transaction
-  phoneCopied.value = false
-  ibanCopied.value = false
-  linkCopied.value = false
-  
-  // Select default method based on what the receiver has configured
-  if (transaction.paymentLink) {
-    selectedPaymentMethod.value = 'link'
-  } else if (transaction.phoneNumber) {
-    selectedPaymentMethod.value = 'wero'
-  } else if (transaction.iban) {
-    selectedPaymentMethod.value = 'iban'
-  } else {
-    selectedPaymentMethod.value = 'cash'
+  // Settle Up Handler (Opens choice dialog)
+  const handleSettleUp = (transaction) => {
+    activeSettleTx.value = transaction
+    phoneCopied.value = false
+    ibanCopied.value = false
+    linkCopied.value = false
+    
+    // Select default method based on what the receiver has configured
+    if (transaction.paymentLink) {
+      selectedPaymentMethod.value = 'link'
+    } else if (transaction.phoneNumber) {
+      selectedPaymentMethod.value = 'wero'
+    } else if (transaction.iban) {
+      selectedPaymentMethod.value = 'iban'
+    } else {
+      selectedPaymentMethod.value = 'cash'
+    }
+
+    isSettleUpOpen.value = true
   }
 
-  settleUpDialog.value.showModal()
-}
-
-const closeSettleUpModal = () => {
-  settleUpDialog.value.close()
-  activeSettleTx.value = null
-}
+  const closeSettleUpModal = () => {
+    isSettleUpOpen.value = false
+    activeSettleTx.value = null
+  }
 
 const copyToClipboard = async (text, refFlag) => {
   try {
@@ -729,19 +756,6 @@ const handleBackdropClick = (dialog, event) => {
               </div>
               <div class="expense-value-actions">
                 <span class="expense-amount" :class="{ 'text-strikethrough text-muted': expense.deleted_at }">{{ formatEuro(expense.amount) }}</span>
-                <button 
-                  v-if="canDeleteExpense(expense) && !expense.deleted_at"
-                  @click.stop="handleDeleteExpense(expense.id, expense.description)"
-                  class="delete-btn"
-                  :title="$t('group.deleteExpenseTitle')"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    <line x1="10" y1="11" x2="10" y2="17"></line>
-                    <line x1="14" y1="11" x2="14" y2="17"></line>
-                  </svg>
-                </button>
               </div>
             </div>
           </div>
@@ -819,7 +833,7 @@ const handleBackdropClick = (dialog, event) => {
     <!-- Modals -->
     <!-- 1. Add Expense Dialog -->
     <BaseModal 
-      ref="addExpenseDialog" 
+      v-model="isAddExpenseOpen"
       :title="$t('group.addNewExpense')"
       @close="closeExpenseModal"
     >
@@ -914,7 +928,7 @@ const handleBackdropClick = (dialog, event) => {
 
     <!-- 2. Add Member Dialog -->
     <BaseModal 
-      ref="addMemberDialog" 
+      v-model="isAddMemberOpen"
       :title="$t('group.addMemberToGroup')"
       @close="closeMemberModal"
     >
@@ -961,7 +975,7 @@ const handleBackdropClick = (dialog, event) => {
 
     <!-- 3. Settle Up (Repay) Dialog with Payment Method selection -->
     <BaseModal 
-      ref="settleUpDialog" 
+      v-model="isSettleUpOpen"
       :title="activeSettleTx ? $t('group.repayUserTitle', { name: activeSettleTx.toName }) : ''"
       @close="closeSettleUpModal"
     >
@@ -1153,7 +1167,7 @@ const handleBackdropClick = (dialog, event) => {
 
     <!-- 4. Edit Member Note Dialog -->
     <BaseModal 
-      ref="noteDialog" 
+      v-model="isNoteOpen"
       :title="selectedNoteMember ? $t('group.noteModalTitle', { name: selectedNoteMember.username || selectedNoteMember.email }) : ''"
       @close="closeNoteModal"
     >
@@ -1180,9 +1194,23 @@ const handleBackdropClick = (dialog, event) => {
       </form>
     </BaseModal>
 
-    <!-- 5. Expense Details Dialog -->
+    <!-- 5. Delete Confirm Dialog -->
+    <BaseModal
+      v-model="isDeleteConfirmOpen"
+      :title="t('group.deleteExpenseTitle')"
+      :show-close="false"
+      @close="handleCancelDelete"
+    >
+      <p>{{ t('group.confirmDeleteExpense', { description: pendingDelete?.description || '' }) }}</p>
+      <template #actions>
+        <BaseButton @click="handleCancelDelete" variant="secondary" size="sm">{{ t('common.cancel') }}</BaseButton>
+        <BaseButton @click="handleConfirmDelete" variant="primary" size="sm" style="background: var(--color-danger); border-color: var(--color-danger);">{{ t('common.confirm') }}</BaseButton>
+      </template>
+    </BaseModal>
+
+    <!-- 6. Expense Details Dialog -->
     <BaseModal 
-      ref="expenseDetailsDialog" 
+      v-model="isExpenseDetailsOpen"
       :title="$t('group.expenseDetailsTitle')"
       @close="closeExpenseDetailsModal"
     >
@@ -1235,7 +1263,21 @@ const handleBackdropClick = (dialog, event) => {
         </div>
 
         <!-- Dialog Footer Actions -->
-        <div class="dialog-actions flex justify-end mt-6">
+        <div class="dialog-actions flex justify-end mt-6 gap-3">
+          <BaseButton 
+            v-if="canDeleteExpense(selectedExpense) && !selectedExpense.deleted_at"
+            @click="handleDeleteFromDetailsModal"
+            variant="secondary" size="sm"
+            style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.3);"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 inline mr-1.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              <line x1="10" y1="11" x2="10" y2="17"></line>
+              <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+            {{ $t('group.deleteExpenseTitle') }}
+          </BaseButton>
           <BaseButton @click="closeExpenseDetailsModal" variant="secondary" size="sm">
             {{ $t('common.ok') }}
           </BaseButton>

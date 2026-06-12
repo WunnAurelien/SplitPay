@@ -18,7 +18,7 @@ const { supabase } = useSupabase()
 const newGroupName = ref('')
 const errorMsg = ref('')
 const isLoading = ref(false)
-const createGroupDialog = ref(null)
+const isCreateGroupOpen = ref(false)
 
 const checkClipboardAndJoin = async () => {
   try {
@@ -78,11 +78,11 @@ const getGroupBalanceText = (group) => {
 const openCreateModal = () => {
   newGroupName.value = ''
   errorMsg.value = ''
-  createGroupDialog.value.showModal()
+  isCreateGroupOpen.value = true
 }
 
 const closeCreateModal = () => {
-  createGroupDialog.value.close()
+  isCreateGroupOpen.value = false
 }
 
 const handleCreateGroup = async () => {
@@ -97,24 +97,6 @@ const handleCreateGroup = async () => {
     errorMsg.value = err.message || t('dashboard.createGroupError')
   } finally {
     isLoading.value = false
-  }
-}
-
-// Dialog backdrop click close fallback
-const handleBackdropClick = (event) => {
-  const dialog = createGroupDialog.value
-  if (!dialog || 'closedBy' in HTMLDialogElement.prototype) return
-  if (event.target !== dialog) return
-
-  const rect = dialog.getBoundingClientRect()
-  const isInDialog = (
-    rect.top <= event.clientY &&
-    event.clientY <= rect.top + rect.height &&
-    rect.left <= event.clientX &&
-    event.clientX <= rect.left + rect.width
-  )
-  if (!isInDialog) {
-    dialog.close()
   }
 }
 
@@ -336,7 +318,7 @@ const getGroupInitials = (name) => {
 
 
       <!-- Create Group Modal Dialog -->
-      <BaseModal ref="createGroupDialog" :title="$t('dashboard.createGroupTitle')" @close="closeCreateModal">
+      <BaseModal v-model="isCreateGroupOpen" :title="$t('dashboard.createGroupTitle')" @close="closeCreateModal">
         <form @submit.prevent="handleCreateGroup">
           <ErrorBanner v-if="errorMsg" :error="errorMsg" />
 

@@ -22,7 +22,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 
 const props = defineProps({
@@ -33,15 +33,18 @@ const props = defineProps({
   showClose: {
     type: Boolean,
     default: true
+  },
+  modelValue: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'update:modelValue'])
 
 const isOpen = ref(false)
 
-const showModal = () => { isOpen.value = true }
-const close = () => { isOpen.value = false; emit('close') }
-
-defineExpose({ showModal, close })
+watch(() => props.modelValue, (val) => {
+  isOpen.value = val
+})
 </script>

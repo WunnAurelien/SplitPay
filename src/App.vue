@@ -13,9 +13,9 @@ const router = useRouter()
 const { locale, t } = useI18n()
 const { supabase } = useSupabase()
 
-const confirmDialogRef = ref(null)
-const alertDialogRef = ref(null)
 const isMobileMenuOpen = ref(false)
+const isConfirmOpen = ref(false)
+const isAlertOpen = ref(false)
 
 let scrollPosition = 0
 
@@ -62,19 +62,11 @@ watch(isMobileMenuOpen, (isOpen) => {
 })
 
 watch(() => state.confirmState?.isOpen, (isOpen) => {
-  if (isOpen) {
-    confirmDialogRef.value?.showModal()
-  } else {
-    confirmDialogRef.value?.close()
-  }
+  isConfirmOpen.value = !!isOpen
 })
 
 watch(() => state.alertState?.isOpen, (isOpen) => {
-  if (isOpen) {
-    alertDialogRef.value?.showModal()
-  } else {
-    alertDialogRef.value?.close()
-  }
+  isAlertOpen.value = !!isOpen
 })
 
 watch(locale, (newLocale) => {
@@ -300,7 +292,7 @@ const stopImpersonating = async () => {
     </main>
 
     <!-- Confirm Dialog Modal -->
-    <BaseModal ref="confirmDialogRef" :title="state.confirmState.title" :show-close="false" @close="state.confirmState.reject?.()">
+    <BaseModal v-model="isConfirmOpen" :title="state.confirmState.title" :show-close="false" @close="state.confirmState.reject?.()">
       <p>{{ state.confirmState.message }}</p>
       <template #actions>
         <BaseButton @click="state.confirmState.reject?.()" variant="secondary" size="sm">{{ state.confirmState.cancelText }}</BaseButton>
@@ -309,7 +301,7 @@ const stopImpersonating = async () => {
     </BaseModal>
 
     <!-- Alert Dialog Modal -->
-    <BaseModal ref="alertDialogRef" :title="state.alertState.title" :show-close="false" @close="state.alertState.resolve?.()">
+    <BaseModal v-model="isAlertOpen" :title="state.alertState.title" :show-close="false" @close="state.alertState.resolve?.()">
       <p>{{ state.alertState.message }}</p>
       <template #actions>
         <BaseButton @click="state.alertState.resolve?.()" variant="primary" size="sm">{{ state.alertState.okText }}</BaseButton>

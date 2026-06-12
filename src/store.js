@@ -174,11 +174,11 @@ const actions = {
     state.error = err ? (err.message || err) : null
   },
 
-  async sendPushNotification({ recipientIds, type, params, url }) {
+  async sendPushNotification({ recipientIds, type, params, url, title, body }) {
     if (!recipientIds || recipientIds.length === 0) return
     
     if (useMock) {
-      console.log(`[Mock Push Notification] To: ${JSON.stringify(recipientIds)}, Type: "${type}", Params: ${JSON.stringify(params)}, URL: "${url}"`)
+      console.log(`[Mock Push Notification] To: ${JSON.stringify(recipientIds)}, Type: "${type || 'custom'}", Title: "${title}", Body: "${body}", Params: ${JSON.stringify(params)}, URL: "${url}"`)
       return
     }
 
@@ -188,7 +188,9 @@ const actions = {
           recipientIds,
           type,
           params,
-          url
+          url,
+          title,
+          body
         }
       })
       if (error) throw error

@@ -141,6 +141,20 @@ const initNotifications = async () => {
   }
 }
 
+const requestNotificationPermission = () => {
+  try {
+    const r = Notification.requestPermission()
+    if (r && typeof r.then === 'function') {
+      return r
+    }
+  } catch (e) {
+    // Fallback for callback-only Safari implementations
+  }
+  return new Promise((resolve) => {
+    Notification.requestPermission(resolve)
+  })
+}
+
 const handleSubscribe = () => {
   if (!isPushSupported.value) return
   
@@ -208,7 +222,7 @@ const handleSubscribe = () => {
     errorMsg.value = 'Les notifications sont bloquées dans les paramètres de votre appareil. Veuillez les activer manuellement.'
     isSubscribing.value = false
   } else {
-    Notification.requestPermission()
+    requestNotificationPermission()
       .then((permission) => {
         notificationPermission.value = permission
         if (permission !== 'granted') {

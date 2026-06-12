@@ -28,6 +28,40 @@ const addExpenseDialog = ref(null)
 const addMemberDialog = ref(null)
 const settleUpDialog = ref(null)
 const noteDialog = ref(null)
+const expenseDetailsDialog = ref(null)
+
+// Expense Details Modal State
+const selectedExpense = ref(null)
+
+const openExpenseDetails = (expense) => {
+  selectedExpense.value = expense
+  expenseDetailsDialog.value.showModal()
+}
+
+const closeExpenseDetailsModal = () => {
+  expenseDetailsDialog.value.close()
+  selectedExpense.value = null
+}
+
+const getBeneficiaryShareAmount = (expense, beneficiary) => {
+  const beneficiaries = expense.expense_beneficiaries || []
+  const totalParts = beneficiaries.reduce((sum, b) => sum + parseFloat(b.parts), 0)
+  if (totalParts === 0) return 0
+  const partsVal = parseFloat(beneficiary.parts)
+  return (partsVal / totalParts) * expense.amount
+}
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return d.toLocaleDateString(locale.value === 'fr' ? 'fr-FR' : 'en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
 
 // Member Note State
 const selectedNoteMember = ref(null)
@@ -148,14 +182,11 @@ const getExpenseSplitSummary = (expense) => {
 
   if (allEqual) return t('group.splitEqually')
 
-  return t('group.splitCustom', {
-    details: beneficiaries.map(b => {
-      const name = b.profiles?.username || b.profiles?.email || t('admin.noHandle')
-      const partsVal = parseFloat(b.parts)
-      const partsLabel = t('group.partsCount', partsVal, { count: partsVal })
-      return `${name} (${partsLabel})`
-    }).join(', ')
-  })
+  const totalParts = partsList.reduce((sum, p) => sum + p, 0)
+  if (totalParts === 1) {
+    return t('group.splitCustomSummarySingular', { parts: totalParts })
+  }
+  return t('group.splitCustomSummary', { parts: totalParts })
 }
 
 // Edit/Delete Permissions
@@ -680,18 +711,19 @@ const handleBackdropClick = (dialog, event) => {
               <div 
               v-for="expense in state.activeGroup.expenses.filter(e => !e.is_pending)" 
               :key="expense.id" 
-              class="expense-row"
+              class="expense-row cursor-pointer hover:border-primary/45 active:scale-[0.99] transition-all"
               :class="{ 'expense-deleted': expense.deleted_at }"
+              @click="openExpenseDetails(expense)"
             >
-              <div class="expense-meta">
-                <div class="expense-title">
-                  <h4 :class="{ 'text-strikethrough': expense.deleted_at }">{{ expense.description }}</h4>
-                  <div class="expense-title-meta">
-                    <span v-if="expense.deleted_at" class="deleted-badge">{{ $t('group.deleted') }}</span>
-                    <span class="expense-payer">{{ $t('group.paidBy', { name: getPayerName(expense) }) }}</span>
-                  </div>
+              <div class="expense-meta" style="display: flex; flex-direction: column; gap: 4px; flex: 1 1 0%; min-width: 0; overflow: hidden;">
+                <h4 :class="{ 'text-strikethrough': expense.deleted_at }" style="margin: 0; font-size: 1.05rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ expense.description }}
+                </h4>
+                <div class="expense-title-meta" style="display: flex; align-items: center; gap: 8px;">
+                  <span v-if="expense.deleted_at" class="deleted-badge">{{ $t('group.deleted') }}</span>
+                  <span class="expense-payer">{{ $t('group.paidBy', { name: getPayerName(expense) }) }}</span>
                 </div>
-                <div class="expense-split">
+                <div class="expense-split" style="margin-top: 2px;">
                   {{ getExpenseSplitSummary(expense) }}
                 </div>
               </div>
@@ -699,11 +731,16 @@ const handleBackdropClick = (dialog, event) => {
                 <span class="expense-amount" :class="{ 'text-strikethrough text-muted': expense.deleted_at }">{{ formatEuro(expense.amount) }}</span>
                 <button 
                   v-if="canDeleteExpense(expense) && !expense.deleted_at"
-                  @click="handleDeleteExpense(expense.id, expense.description)"
+                  @click.stop="handleDeleteExpense(expense.id, expense.description)"
                   class="delete-btn"
                   :title="$t('group.deleteExpenseTitle')"
                 >
-                  &times;
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
                 </button>
               </div>
             </div>
@@ -1142,6 +1179,69 @@ const handleBackdropClick = (dialog, event) => {
         </div>
       </form>
     </BaseModal>
+
+    <!-- 5. Expense Details Dialog -->
+    <BaseModal 
+      ref="expenseDetailsDialog" 
+      :title="$t('group.expenseDetailsTitle')"
+      @close="closeExpenseDetailsModal"
+    >
+      <div v-if="selectedExpense" class="space-y-4">
+        <!-- Expense Header details -->
+        <div class="border-b border-base-300 pb-3">
+          <h3 class="text-lg font-bold text-base-content">{{ selectedExpense.description }}</h3>
+          <p class="text-xs text-base-content/50 mt-1">
+            {{ $t('group.dateLabel') }} : {{ formatDate(selectedExpense.created_at) }}
+          </p>
+        </div>
+
+        <!-- Expense Amount and Payer -->
+        <div class="grid grid-cols-2 gap-4 py-2">
+          <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/30">
+            <span class="text-[10px] uppercase tracking-wider text-base-content/50 font-semibold block">{{ $t('group.totalAmountLabel') }}</span>
+            <span class="text-xl font-bold text-primary block mt-0.5">{{ formatEuro(selectedExpense.amount) }}</span>
+          </div>
+          <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/30">
+            <span class="text-[10px] uppercase tracking-wider text-base-content/50 font-semibold block">{{ $t('group.whoPaidLabel') }}</span>
+            <span class="text-base font-bold text-base-content block mt-0.5 truncate">{{ getPayerName(selectedExpense) }}</span>
+          </div>
+        </div>
+
+        <!-- Split breakdown list -->
+        <div class="space-y-2">
+          <h4 class="text-xs uppercase tracking-wider text-base-content/50 font-semibold mt-2">{{ $t('group.splitBreakdownTitle') }}</h4>
+          <div class="bg-base-200/30 rounded-xl border border-base-300/20 divide-y divide-base-300/10 overflow-hidden">
+            <div 
+              v-for="b in selectedExpense.expense_beneficiaries" 
+              :key="b.id" 
+              class="flex items-center justify-between p-3"
+            >
+              <div class="flex items-center gap-2.5 min-w-0">
+                <div class="h-7 w-7 rounded-full bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20 flex items-center justify-center font-semibold text-xs text-primary shrink-0">
+                  {{ (b.profiles?.username || b.profiles?.email || '?')[0].toUpperCase() }}
+                </div>
+                <span class="text-sm font-medium text-base-content/90 truncate">{{ b.profiles?.username || b.profiles?.email }}</span>
+              </div>
+              <div class="flex items-center gap-3 shrink-0">
+                <span class="text-xs text-base-content/50 font-medium">
+                  {{ $t('group.partsCount', parseFloat(b.parts), { count: parseFloat(b.parts) }) }}
+                </span>
+                <span class="text-sm font-semibold text-base-content">
+                  {{ formatEuro(getBeneficiaryShareAmount(selectedExpense, b)) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dialog Footer Actions -->
+        <div class="dialog-actions flex justify-end mt-6">
+          <BaseButton @click="closeExpenseDetailsModal" variant="secondary" size="sm">
+            {{ $t('common.ok') }}
+          </BaseButton>
+        </div>
+      </div>
+    </BaseModal>
   </div>
   <ErrorBanner v-else-if="state.error" :error="state.error" :title="$t('common.errorConfig')" global>
     <router-link to="/" class="btn btn-secondary btn-sm" style="margin-top: 15px; display: inline-block;">
@@ -1333,7 +1433,7 @@ const handleBackdropClick = (dialog, event) => {
   font-size: 0.8rem;
   color: var(--text-dark);
   margin-top: 6px;
-  max-width: 450px;
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1343,26 +1443,33 @@ const handleBackdropClick = (dialog, event) => {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-shrink: 0;
 }
 
 .expense-amount {
   font-family: 'Outfit', sans-serif;
   font-weight: 700;
   font-size: 1.25rem;
+  white-space: nowrap;
 }
 
 .delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: none;
   color: var(--text-dark);
-  font-size: 1.5rem;
   cursor: pointer;
-  line-height: 1;
-  transition: color 0.2s;
+  transition: all 0.2s;
+  padding: 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
 }
 
 .delete-btn:hover {
   color: var(--color-danger);
+  background: var(--color-danger-bg);
 }
 
 .expense-deleted {

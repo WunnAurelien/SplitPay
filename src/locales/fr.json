@@ -133,6 +133,8 @@
     "notificationsDisabled": "Notifications désactivées",
     "notificationsDisabledSubtitle": "Les alertes sont désactivées pour cet appareil.",
     "enableNotificationsBtn": "Activer les notifications",
+    "disableNotificationsBtn": "Désactiver les notifications",
+    "disabling": "Désactivation...",
     "iosPwaRequired": "Sur iOS, les notifications requièrent que l'application soit installée.",
     "iosPwaInstruction": "Pour cela, appuyez sur l'icône de partage 📤 de Safari puis sélectionnez 'Sur l'écran d'accueil' ➕.",
     "active": "Actif",

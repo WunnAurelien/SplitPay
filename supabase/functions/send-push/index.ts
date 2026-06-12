@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
     // Send notifications in parallel
     const sendPromises = profiles
       .filter(p => p.push_subscription)
-      .map(async (profile) => {
+      .flatMap((profile) => {
         const userLocale = (profile.locale === 'en' || profile.locale === 'fr') ? profile.locale : 'fr';
         
         let notifTitle = '';
@@ -212,13 +212,21 @@ Deno.serve(async (req) => {
           url: notifUrl
         })
 
-        try {
-          await webPush.sendNotification(profile.push_subscription, payload)
-          return { id: profile.id, success: true }
-        } catch (err) {
-          console.error(`Failed to send push to user ${profile.id}:`, err)
-          return { id: profile.id, success: false, error: err.message }
-        }
+        // Check if push_subscription is an array or a single object
+        const subs = Array.isArray(profile.push_subscription)
+          ? profile.push_subscription
+          : [profile.push_subscription];
+
+        return subs.map(async (sub) => {
+          if (!sub || !sub.endpoint) return { id: profile.id, success: false, error: 'Invalid subscription' };
+          try {
+            await webPush.sendNotification(sub, payload)
+            return { id: profile.id, success: true, endpoint: sub.endpoint }
+          } catch (err) {
+            console.error(`Failed to send push to user ${profile.id} at endpoint ${sub.endpoint}:`, err)
+            return { id: profile.id, success: false, error: err.message, endpoint: sub.endpoint }
+          }
+        })
       })
 
     const results = await Promise.all(sendPromises)

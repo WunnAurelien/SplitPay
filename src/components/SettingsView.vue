@@ -193,16 +193,42 @@ const handleSubscribe = () => {
       userVisibleOnly: true,
       applicationServerKey: convertedKey
     })
-    .then((subscription) => {
+    .then(async (subscription) => {
       if (state.profile?.id) {
-        return supabase
+        // Fetch current subscriptions to avoid overwriting other devices
+        const { data: profileData, error: fetchError } = await supabase
           .from('profiles')
-          .update({ push_subscription: subscription })
+          .select('push_subscription')
           .eq('id', state.profile.id)
-          .then(({ error }) => {
-            if (error) throw error
-            isSubscribed.value = true
-          })
+          .single()
+
+        if (fetchError) throw fetchError
+
+        let currentSubs = []
+        if (profileData && profileData.push_subscription) {
+          if (Array.isArray(profileData.push_subscription)) {
+            currentSubs = profileData.push_subscription
+          } else {
+            currentSubs = [profileData.push_subscription]
+          }
+        }
+
+        const newSubJson = subscription.toJSON()
+        
+        // Remove existing duplicate endpoint if any
+        currentSubs = currentSubs.filter(sub => sub && sub.endpoint !== newSubJson.endpoint)
+        currentSubs.push(newSubJson)
+
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ push_subscription: currentSubs })
+          .eq('id', state.profile.id)
+
+        if (updateError) throw updateError
+        
+        // Sync local state
+        state.profile.push_subscription = currentSubs
+        isSubscribed.value = true
       } else {
         isSubscribed.value = true
       }
@@ -237,6 +263,71 @@ const handleSubscribe = () => {
       .finally(() => {
         isSubscribing.value = false
       })
+  }
+}
+
+const isUnsubscribing = ref(false)
+
+const handleUnsubscribe = async () => {
+  if (!isPushSupported.value) return
+  
+  isUnsubscribing.value = true
+  errorMsg.value = ''
+  
+  try {
+    const registration = activeRegistration.value
+    if (!registration) {
+      throw new Error('Le Service Worker n\'est pas encore prêt.')
+    }
+
+    const subscription = await registration.pushManager.getSubscription()
+    if (subscription) {
+      // Unsubscribe locally in the browser
+      const success = await subscription.unsubscribe()
+      if (!success) {
+        throw new Error('Échec de la désinscription locale.')
+      }
+
+      // Remove from Database
+      if (state.profile?.id) {
+        const { data: profileData, error: fetchError } = await supabase
+          .from('profiles')
+          .select('push_subscription')
+          .eq('id', state.profile.id)
+          .single()
+
+        if (fetchError) throw fetchError
+
+        let currentSubs = []
+        if (profileData && profileData.push_subscription) {
+          if (Array.isArray(profileData.push_subscription)) {
+            currentSubs = profileData.push_subscription
+          } else {
+            currentSubs = [profileData.push_subscription]
+          }
+        }
+
+        const subJson = subscription.toJSON()
+        // Filter out this endpoint
+        const updatedSubs = currentSubs.filter(sub => sub && sub.endpoint !== subJson.endpoint)
+
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ push_subscription: updatedSubs })
+          .eq('id', state.profile.id)
+
+        if (updateError) throw updateError
+        
+        state.profile.push_subscription = updatedSubs
+      }
+    }
+    
+    isSubscribed.value = false
+  } catch (err) {
+    console.error('Failed to unsubscribe:', err)
+    errorMsg.value = `Échec de la désactivation : ${err.message}`
+  } finally {
+    isUnsubscribing.value = false
   }
 }
 
@@ -446,16 +537,7 @@ const handleLogout = async () => {
           </div>
         </div>
 
-        <!-- Self-Signed SSL Warning -->
-        <div v-if="isIOSDevice && isHttps && !isSubscribed" class="p-4 bg-info/10 border border-info/20 rounded-xl text-sm flex items-start gap-3 w-full">
-          <span class="text-lg">💡</span>
-          <div class="leading-relaxed text-base-content/85 flex-1">
-            <p class="font-semibold text-info">Certificat SSL Auto-signé ?</p>
-            <p class="mt-1 text-xs text-base-content/70">
-              iOS Safari <strong>bloque silencieusement</strong> les abonnements push si le certificat SSL n'est pas signé par une autorité reconnue. Si vous utilisez un certificat local auto-signé, utilisez un tunnel de test (ex: ngrok).
-            </p>
-          </div>
-        </div>
+
 
         <!-- Subscription Panel (Controls) -->
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full">
@@ -483,9 +565,15 @@ const handleLogout = async () => {
               <span v-if="isSubscribing" class="loading loading-spinner loading-xs"></span>
               {{ $t('settings.enableNotificationsBtn') }}
             </button>
-            <span v-else class="badge badge-success text-xs font-semibold py-1 px-3">
-              {{ $t('settings.active') }}
-            </span>
+            <button 
+              v-else 
+              @click="handleUnsubscribe" 
+              :disabled="isUnsubscribing"
+              class="btn btn-error btn-outline btn-sm flex items-center gap-2"
+            >
+              <span v-if="isUnsubscribing" class="loading loading-spinner loading-xs"></span>
+              {{ $t('settings.disableNotificationsBtn') }}
+            </button>
           </div>
         </div>
       </div>

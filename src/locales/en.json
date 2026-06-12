@@ -133,6 +133,8 @@
     "notificationsDisabled": "Notifications disabled",
     "notificationsDisabledSubtitle": "Push notifications are currently disabled for this device.",
     "enableNotificationsBtn": "Enable notifications",
+    "disableNotificationsBtn": "Disable Notifications",
+    "disabling": "Disabling...",
     "iosPwaRequired": "On iOS, notifications require the app to be installed.",
     "iosPwaInstruction": "To install, tap the Share icon 📤 in Safari, then select 'Add to Home Screen' ➕.",
     "active": "Active",

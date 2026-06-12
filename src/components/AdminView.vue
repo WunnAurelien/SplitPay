@@ -83,7 +83,7 @@ const selectAllRecipients = () => {
 
 const selectActiveRecipients = () => {
   selectedRecipients.value = state.profiles
-    .filter(p => p.push_subscription)
+    .filter(p => p.push_subscription && (!Array.isArray(p.push_subscription) || p.push_subscription.length > 0))
     .map(p => p.id)
 }
 
@@ -94,14 +94,14 @@ const deselectAllRecipients = () => {
 const hasSelectedNoPush = computed(() => {
   return selectedRecipients.value.some(id => {
     const p = state.profiles.find(prof => prof.id === id)
-    return p && !p.push_subscription
+    return p && (!p.push_subscription || (Array.isArray(p.push_subscription) && p.push_subscription.length === 0))
   })
 })
 
 const handleSendPush = async () => {
   const activeSelected = selectedRecipients.value.filter(id => {
     const p = state.profiles.find(prof => prof.id === id)
-    return p && p.push_subscription
+    return p && p.push_subscription && (!Array.isArray(p.push_subscription) || p.push_subscription.length > 0)
   })
 
   if (activeSelected.length === 0) {
@@ -507,9 +507,9 @@ const handleRefresh = async () => {
               <div class="shrink-0">
                 <span
                   class="badge badge-sm"
-                  :class="profile.push_subscription ? 'badge-success bg-success/10 text-success border-success/20' : 'badge-neutral opacity-50'"
+                  :class="profile.push_subscription && (!Array.isArray(profile.push_subscription) || profile.push_subscription.length > 0) ? 'badge-success bg-success/10 text-success border-success/20' : 'badge-neutral opacity-50'"
                 >
-                  {{ profile.push_subscription ? $t('admin.pushSubscriptionEnabled') : $t('admin.pushSubscriptionDisabled') }}
+                  {{ profile.push_subscription && (!Array.isArray(profile.push_subscription) || profile.push_subscription.length > 0) ? $t('admin.pushSubscriptionEnabled') : $t('admin.pushSubscriptionDisabled') }}
                 </span>
               </div>
             </div>

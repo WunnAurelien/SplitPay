@@ -19,17 +19,6 @@ const createGroupDialog = ref(null)
 
 onMounted(async () => {
   await actions.fetchGroups()
-  
-  // Direct console diagnostics for RLS and user status debugging
-  console.log('[SplitPay Diagnostic] Current User Session:', state.session)
-  console.log('[SplitPay Diagnostic] Local State Profile:', state.profile)
-  console.log('[SplitPay Diagnostic] Is Local Admin:', state.isAdmin)
-
-  const { data: pData, error: pErr } = await supabase.from('profiles').select('*')
-  console.log('[SplitPay Diagnostic] DB Profiles Select Result:', pData, pErr)
-
-  const { data: cData, error: cErr } = await supabase.from('app_config').select('*')
-  console.log('[SplitPay Diagnostic] DB App Config Select Result:', cData, cErr)
 })
 
 const handleRefresh = async () => {

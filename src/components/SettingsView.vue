@@ -79,44 +79,9 @@ const isStandalone = ref(false)
 const isPushSupported = ref(false)
 const isSubscribed = ref(false)
 const isSubscribing = ref(false)
-const debugLogs = ref([])
-const showDebug = ref(false)
 const notificationPermission = ref('default')
 const isInsecureOrigin = ref(false)
 const isHttps = ref(false)
-
-const logDebug = (msg) => {
-  console.log(msg)
-  debugLogs.value.push(`${new Date().toLocaleTimeString()} - ${msg}`)
-}
-
-const logErrorDetails = (label, err) => {
-  const name = err?.name || 'UnknownError';
-  const message = err?.message || 'No message';
-  const stack = err?.stack || 'No stack trace';
-  const code = err?.code !== undefined ? err.code : 'N/A';
-  
-  logDebug(`[Error] ${label}: ${name} - ${message}`);
-  logDebug(`[Error Details] Code: ${code}`);
-  if (err && typeof err === 'object') {
-    try {
-      const keys = Object.getOwnPropertyNames(err);
-      for (const key of keys) {
-        if (key !== 'stack' && key !== 'message') {
-          logDebug(`  ${key}: ${err[key]}`);
-        }
-      }
-    } catch (e) {
-      logDebug(`[Error Keys] failed to extract keys: ${e.message}`);
-    }
-  }
-  const stackLines = stack.split('\n');
-  for (const line of stackLines.slice(0, 5)) {
-    if (line.trim()) {
-      logDebug(`  ${line.trim()}`);
-    }
-  }
-}
 
 const urlBase64ToUint8Array = (base64String) => {
   // Supprimer les espaces éventuels
@@ -154,68 +119,36 @@ const initNotifications = async () => {
   isInsecureOrigin.value = protocol !== 'https:' && hostname !== 'localhost' && hostname !== '127.0.0.1'
   isHttps.value = protocol === 'https:'
 
-  // Parse iOS version from User Agent
-  const ua = navigator.userAgent
-  let iosVersion = 'Unknown'
-  const matches = ua.match(/OS (\d+)_(\d+)_?(\d+)?/)
-  if (matches) {
-    iosVersion = `${matches[1]}.${matches[2]}${matches[3] ? '.' + matches[3] : ''}`
-  }
-
   // Listen for service worker controller change to automatically refresh
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      logDebug('SW Controller changed! Reloading page in 500ms to apply changes...')
       setTimeout(() => {
         window.location.reload()
       }, 500)
     })
   }
 
-  const controller = navigator.serviceWorker.controller
-  logDebug(`[Env] Origin: ${window.location.origin}, PWA: ${isStandalone.value ? 'Yes' : 'No'}, Secure: ${!isInsecureOrigin.value}`)
-  logDebug(`[Device] iOS Version: ${iosVersion}, iOS Device: ${isIOSDevice.value}`)
-  logDebug(`[Push] PushSupported: ${isPushSupported.value}, SW Controller: ${controller ? 'Active' : 'None'}, Permission: ${notificationPermission.value}`)
-
   if (isPushSupported.value) {
     try {
       const registration = await getServiceWorkerReady()
       activeRegistration.value = registration
-      logDebug(`Service Worker ready. Scope: ${registration.scope}`)
       
-      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
-      if (vapidPublicKey) {
-        try {
-          const converted = urlBase64ToUint8Array(vapidPublicKey)
-          logDebug(`[VAPID Init] Key Decoded: len=${converted.length}, firstByte=${converted[0]}`)
-        } catch (e) {
-          logDebug(`[VAPID Init] Decoding failed: ${e.message}`)
-        }
-      }
-
       const subscription = await registration.pushManager.getSubscription()
       isSubscribed.value = !!subscription
-      logDebug(`Existing subscription: ${isSubscribed.value}`)
     } catch (err) {
-      logDebug(`Error checking push subscription: ${err.message}`)
       console.error('Error checking push subscription:', err)
     }
   }
 }
 
 const handleSubscribe = () => {
-  if (!isPushSupported.value) {
-    logDebug('Push not supported, aborting subscribe.')
-    return
-  }
+  if (!isPushSupported.value) return
   
   isSubscribing.value = true
   errorMsg.value = ''
   
   const initialPermission = 'Notification' in window ? Notification.permission : 'default'
   notificationPermission.value = initialPermission
-  
-  logDebug(`[Chain] Clic détecté. Statut permission initial: ${initialPermission}`)
 
   const registration = activeRegistration.value
   if (!registration) {
@@ -235,58 +168,48 @@ const handleSubscribe = () => {
   try {
     convertedKey = urlBase64ToUint8Array(vapidPublicKey)
   } catch (err) {
-    logErrorDetails('Décodage VAPID', err)
+    console.error('Décodage VAPID failed:', err)
     errorMsg.value = `Erreur configuration clé VAPID: ${err.message}`
     isSubscribing.value = false
     return
   }
 
   const doSubscribe = () => {
-    logDebug('[Chain] Appel direct de registration.pushManager.subscribe...')
     return registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: convertedKey
     })
     .then((subscription) => {
-      logDebug('[Chain] Subscription réussie avec succès.')
-      
       if (state.profile?.id) {
-        logDebug('[Chain] Enregistrement dans Supabase...')
         return supabase
           .from('profiles')
           .update({ push_subscription: subscription })
           .eq('id', state.profile.id)
           .then(({ error }) => {
             if (error) throw error
-            logDebug('[Chain] Sauvegarde Supabase réussie.')
             isSubscribed.value = true
           })
       } else {
-        logDebug('[Chain] Pas d\'ID utilisateur, abonnement actif localement.')
         isSubscribed.value = true
       }
     })
   }
 
   if (initialPermission === 'granted') {
-    logDebug('[Chain] La permission est déjà accordée. Appel immédiat de subscribe.')
     doSubscribe()
       .catch((err) => {
-        logErrorDetails('Direct Subscribe', err)
+        console.error('Direct Subscribe failed:', err)
         errorMsg.value = `Échec de l'abonnement direct : ${err.message} (${err.name})`
       })
       .finally(() => {
         isSubscribing.value = false
       })
   } else if (initialPermission === 'denied') {
-    logDebug('[Chain] Permission déjà refusée (denied).')
     errorMsg.value = 'Les notifications sont bloquées dans les paramètres de votre appareil. Veuillez les activer manuellement.'
     isSubscribing.value = false
   } else {
-    logDebug('[Chain] Demande de permission...')
     Notification.requestPermission()
       .then((permission) => {
-        logDebug(`[Chain] Permission résolue à: ${permission}`)
         notificationPermission.value = permission
         if (permission !== 'granted') {
           throw new Error(`L'utilisateur a décliné la permission de notification (${permission}).`)
@@ -294,7 +217,7 @@ const handleSubscribe = () => {
         return doSubscribe()
       })
       .catch((err) => {
-        logErrorDetails('Chained Subscribe', err)
+        console.error('Chained Subscribe failed:', err)
         errorMsg.value = `Échec de l'activation : ${err.message} (${err.name})`
       })
       .finally(() => {
@@ -549,24 +472,6 @@ const handleLogout = async () => {
             <span v-else class="badge badge-success text-xs font-semibold py-1 px-3">
               {{ $t('settings.active') }}
             </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Debug Console (Toggleable) -->
-      <div class="mt-4 pt-4 border-t border-base-content/10 w-full">
-        <button 
-          type="button"
-          @click="showDebug = !showDebug" 
-          class="text-xs text-cyan hover:underline flex items-center gap-1 focus:outline-none"
-        >
-          {{ showDebug ? '⚠️ Masquer les logs de débogage' : '🛠️ Afficher les logs de débogage' }}
-        </button>
-        
-        <div v-if="showDebug" class="mt-2 p-3 bg-base-300 rounded-lg text-[11px] font-mono leading-relaxed text-base-content/80 max-h-40 overflow-y-auto w-full">
-          <div v-if="debugLogs.length === 0" class="text-base-content/50">Aucun log disponible.</div>
-          <div v-for="(log, i) in debugLogs" :key="i" class="border-b border-base-content/5 py-0.5 last:border-0">
-            {{ log }}
           </div>
         </div>
       </div>

@@ -10,9 +10,6 @@ import "flag-icons/css/flag-icons.min.css";
 // Register PWA service worker with immediate take-over configuration
 registerSW({
   immediate: true,
-  onRegisteredSW(swScriptUrl) {
-    console.log('[PWA] Service worker registered:', swScriptUrl)
-  },
   onRegisterError(error) {
     console.error('[PWA] Service worker registration failed:', error)
   }

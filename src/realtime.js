@@ -51,7 +51,6 @@ function setupGlobalChannels(supabase, store) {
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'groups' },
       async (payload) => {
-        console.log('[Realtime] Group INSERT:', payload.new?.id)
         // Un nouveau groupe a été créé — refresh la liste complète
         // pour récupérer les group_members et profiles associés
         await store.actions.fetchGroups()
@@ -61,7 +60,6 @@ function setupGlobalChannels(supabase, store) {
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'groups' },
       (payload) => {
-        console.log('[Realtime] Group UPDATE:', payload.new?.id)
         const updatedGroup = payload.new
         const idx = store.state.groups.findIndex(g => g.id === updatedGroup.id)
         if (idx !== -1) {
@@ -74,7 +72,6 @@ function setupGlobalChannels(supabase, store) {
       'postgres_changes',
       { event: 'DELETE', schema: 'public', table: 'groups' },
       (payload) => {
-        console.log('[Realtime] Group DELETE:', payload.old?.id)
         store.state.groups = store.state.groups.filter(g => g.id !== payload.old.id)
         // Si le groupe supprimé est le groupe actif, le désactiver
         if (store.state.activeGroup?.id === payload.old.id) {
@@ -86,7 +83,6 @@ function setupGlobalChannels(supabase, store) {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'group_members' },
       async (payload) => {
-        console.log('[Realtime] Group Member change:', payload.eventType, payload.new?.group_id, payload.new?.profile_id)
         // Les changements de membres sont complexes (nécessitent profiles)
         // On refresh la liste des groupes et le groupe actif si concerné
         await store.actions.fetchGroups()
@@ -99,7 +95,6 @@ function setupGlobalChannels(supabase, store) {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'expenses' },
       async (payload) => {
-        console.log('[Realtime] Global Expense change:', payload.eventType, payload.new?.id || payload.old?.id)
         // Une dépense a été ajoutée, modifiée ou supprimée — refresh la liste des groupes
         // pour recalculer les soldes du dashboard en direct
         await store.actions.fetchGroups()
@@ -109,14 +104,11 @@ function setupGlobalChannels(supabase, store) {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'expense_beneficiaries' },
       async (payload) => {
-        console.log('[Realtime] Global Expense Beneficiary change:', payload.eventType)
         // Les bénéficiaires ont changé — refresh la liste des groupes pour recalculer les soldes
         await store.actions.fetchGroups()
       }
     )
-    .subscribe((status) => {
-      console.log('[Realtime] Groups channel status:', status)
-    })
+    .subscribe()
 
   // --- Channel Profiles ---
   const profileChannel = createChannel(supabase, 'splitpay-profiles')
@@ -130,7 +122,6 @@ function setupGlobalChannels(supabase, store) {
       async (payload) => {
         const eventType = payload.eventType
         const updatedProfile = payload.new || payload.old
-        console.log(`[Realtime] Profile ${eventType}:`, updatedProfile?.id)
 
         const currentUserId = store.state.session?.user?.id
 
@@ -186,9 +177,7 @@ function setupGlobalChannels(supabase, store) {
         }
       }
     )
-    .subscribe((status) => {
-      console.log('[Realtime] Profiles channel status:', status)
-    })
+    .subscribe()
 }
 
 /**
@@ -210,7 +199,6 @@ function setupGroupChannel(supabase, groupId, store) {
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'expenses', filter: `group_id=eq.${groupId}` },
       async (payload) => {
-        console.log('[Realtime] Expense INSERT in group', groupId, ':', payload.new?.id)
         // L'INSERT a les champs de base mais pas les beneficiaries
         // On refresh complet pour avoir les relations
         await store.actions.fetchGroupDetails(groupId)
@@ -221,7 +209,6 @@ function setupGroupChannel(supabase, groupId, store) {
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'expenses', filter: `group_id=eq.${groupId}` },
       async (payload) => {
-        console.log('[Realtime] Expense UPDATE in group', groupId, ':', payload.new?.id)
         const updatedExpense = payload.new
         const oldExpense = payload.old
 
@@ -260,7 +247,6 @@ function setupGroupChannel(supabase, groupId, store) {
       'postgres_changes',
       { event: 'DELETE', schema: 'public', table: 'expenses', filter: `group_id=eq.${groupId}` },
       (payload) => {
-        console.log('[Realtime] Expense DELETE in group', groupId, ':', payload.old?.id)
         if (store.state.activeGroup) {
           store.state.activeGroup.expenses = store.state.activeGroup.expenses.filter(e => e.id !== payload.old.id)
         }
@@ -271,7 +257,6 @@ function setupGroupChannel(supabase, groupId, store) {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'expense_beneficiaries' },
       async (payload) => {
-        console.log('[Realtime] Expense Beneficiary change in group', groupId, ':', payload.eventType)
         // Les beneficiaries changent les calculs financiers ⟶ refresh complet
         // On ne refresh que si la dépense concernée appartient au groupe actif
         if (store.state.activeGroup?.expenses.some(e => e.id === payload.new?.expense_id || e.id === payload.old?.expense_id)) {
@@ -279,9 +264,7 @@ function setupGroupChannel(supabase, groupId, store) {
         }
       }
     )
-    .subscribe((status) => {
-      console.log(`[Realtime] Group channel ${groupId} status:`, status)
-    })
+    .subscribe()
 }
 
 /**

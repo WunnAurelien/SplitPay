@@ -327,7 +327,6 @@ const actions = {
       
       // Self-healing check: if Auth user is present but profile table is missing their row (e.g. trigger failed)
       if (!profile) {
-        console.log('[SplitPay] Profile row is missing. Automatically generating one.');
         const { data: newProfile, error: insError } = await supabase
           .from('profiles')
           .insert({
@@ -343,7 +342,6 @@ const actions = {
           // because the client authentication headers were not fully applied yet during onAuthStateChange callback.
           // We handle this gracefully by waiting 150ms and retrying the select query.
           if (insError.code === '23505' || insError.message?.includes('duplicate key') || insError.message?.includes('profiles_pkey')) {
-            console.log('[SplitPay] Duplicate profile detected. Retrying profile retrieval after authorization headers sync...');
             await new Promise(resolve => setTimeout(resolve, 150));
             
             const { data: retryList, error: retryError } = await supabase
@@ -372,7 +370,6 @@ const actions = {
         if (state.profile && adminSetup.status === 'approved') {
           state.profile.status = 'approved'
         }
-        console.log('[SplitPay] Admin setup RPC result:', adminSetup)
       } else {
         // RPC not available (function not deployed yet) — fallback to manual logic
         console.warn('[SplitPay] setup_admin_if_needed RPC unavailable, using manual fallback:', rpcError?.message)
@@ -389,7 +386,6 @@ const actions = {
         if (!adminConfig) {
           state.isAdmin = true
 
-          console.log('[SplitPay] No admin configured. Automatically setting this user as admin.');
           const { error: insError } = await supabase
             .from('app_config')
             .insert({ key: 'admin_uuid', value: userId })
@@ -416,7 +412,6 @@ const actions = {
           state.isAdmin = adminConfig.value === userId
 
           if (state.isAdmin && state.profile && state.profile.status !== 'approved') {
-            console.log('[SplitPay] Admin user detected with pending/rejected status. Automatically approving admin profile.');
             const { error: updError } = await supabase
               .from('profiles')
               .update({ status: 'approved' })

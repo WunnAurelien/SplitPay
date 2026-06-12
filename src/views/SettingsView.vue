@@ -1,15 +1,15 @@
-<script setup>
+<script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { state, actions } from '../store'
-import { useSupabase } from '../supabase'
-import BaseButton from './ui/BaseButton.vue'
-import BaseCard from './ui/BaseCard.vue'
-import BaseInput from './ui/BaseInput.vue'
-import ErrorBanner from './ui/ErrorBanner.vue'
-import PullToRefresh from './ui/PullToRefresh.vue'
-import { isRunningAsPWA } from '../usePWA'
+import { state, actions } from '@/store'
+import { useSupabase } from '@/services/supabase'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseCard from '@/components/ui/BaseCard.vue'
+import BaseInput from '@/components/ui/BaseInput.vue'
+import ErrorBanner from '@/components/ui/ErrorBanner.vue'
+import PullToRefresh from '@/components/ui/PullToRefresh.vue'
+import { isRunningAsPWA } from '@/composables/usePWA'
 
 const handleRefresh = () => {
   // Settings are local — just re-sync the form fields from state
@@ -125,7 +125,7 @@ const notificationPermission = ref('default')
 const isInsecureOrigin = ref(false)
 const isHttps = ref(false)
 
-const urlBase64ToUint8Array = (base64String) => {
+const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
   // Supprimer les espaces éventuels
   const str = base64String.trim();
   const padding = '='.repeat((4 - (str.length % 4)) % 4);
@@ -140,14 +140,14 @@ const urlBase64ToUint8Array = (base64String) => {
   return outputArray;
 };
 
-const getServiceWorkerReady = () => {
+const getServiceWorkerReady = (): Promise<ServiceWorkerRegistration> => {
   return Promise.race([
     navigator.serviceWorker.ready,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Service Worker ready timeout')), 5000))
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Service Worker ready timeout')), 5000))
   ])
 }
 
-const activeRegistration = ref(null)
+const activeRegistration = ref<ServiceWorkerRegistration | null>(null)
 
 const initNotifications = async () => {
   isIOSDevice.value = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
@@ -183,7 +183,7 @@ const initNotifications = async () => {
   }
 }
 
-const requestNotificationPermission = () => {
+const requestNotificationPermission = (): Promise<NotificationPermission> => {
   try {
     const r = Notification.requestPermission()
     if (r && typeof r.then === 'function') {
@@ -220,12 +220,12 @@ const handleSubscribe = () => {
     return
   }
 
-  let convertedKey
+  let convertedKey: Uint8Array
   try {
     convertedKey = urlBase64ToUint8Array(vapidPublicKey)
   } catch (err) {
     console.error('Décodage VAPID failed:', err)
-    errorMsg.value = `Erreur configuration clé VAPID: ${err.message}`
+    errorMsg.value = `Erreur configuration clé VAPID: ${(err as any).message}`
     isSubscribing.value = false
     return
   }
@@ -233,7 +233,7 @@ const handleSubscribe = () => {
   const doSubscribe = () => {
     return registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: convertedKey
+      applicationServerKey: convertedKey as any
     })
     .then(async (subscription) => {
       if (state.profile?.id) {
@@ -258,7 +258,7 @@ const handleSubscribe = () => {
         const newSubJson = subscription.toJSON()
         
         // Remove existing duplicate endpoint if any
-        currentSubs = currentSubs.filter(sub => sub && sub.endpoint !== newSubJson.endpoint)
+        currentSubs = currentSubs.filter((sub: any) => sub && sub.endpoint !== newSubJson.endpoint)
         currentSubs.push(newSubJson)
 
         const { error: updateError } = await supabase
@@ -281,7 +281,7 @@ const handleSubscribe = () => {
     doSubscribe()
       .catch((err) => {
         console.error('Direct Subscribe failed:', err)
-        errorMsg.value = `Échec de l'abonnement direct : ${err.message} (${err.name})`
+        errorMsg.value = `Échec de l'abonnement direct : ${(err as any).message} (${(err as any).name})`
       })
       .finally(() => {
         isSubscribing.value = false
@@ -300,7 +300,7 @@ const handleSubscribe = () => {
       })
       .catch((err) => {
         console.error('Chained Subscribe failed:', err)
-        errorMsg.value = `Échec de l'activation : ${err.message} (${err.name})`
+        errorMsg.value = `Échec de l'activation : ${(err as any).message} (${(err as any).name})`
       })
       .finally(() => {
         isSubscribing.value = false
@@ -351,7 +351,7 @@ const handleUnsubscribe = async () => {
 
         const subJson = subscription.toJSON()
         // Filter out this endpoint
-        const updatedSubs = currentSubs.filter(sub => sub && sub.endpoint !== subJson.endpoint)
+        const updatedSubs = currentSubs.filter((sub: any) => sub && sub.endpoint !== subJson.endpoint)
 
         const { error: updateError } = await supabase
           .from('profiles')
@@ -367,7 +367,7 @@ const handleUnsubscribe = async () => {
     isSubscribed.value = false
   } catch (err) {
     console.error('Failed to unsubscribe:', err)
-    errorMsg.value = `Échec de la désactivation : ${err.message}`
+    errorMsg.value = `Échec de la désactivation : ${(err as any).message}`
   } finally {
     isUnsubscribing.value = false
   }
@@ -405,7 +405,7 @@ const handleUpdate = async () => {
     })
     successMsg.value = t('settings.profileUpdateSuccess')
   } catch (err) {
-    errorMsg.value = err.message || t('settings.profileUpdateError')
+    errorMsg.value = (err as any).message || t('settings.profileUpdateError')
   } finally {
     isSaving.value = false
   }

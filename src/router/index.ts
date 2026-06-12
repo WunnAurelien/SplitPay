@@ -1,13 +1,13 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { state, actions } from './store'
+import { state, actions } from '@/store'
 
-import AuthView from './components/AuthView.vue'
-import UpdatePasswordView from './components/UpdatePasswordView.vue'
-import DashboardView from './components/DashboardView.vue'
-import GroupDetailsView from './components/GroupDetailsView.vue'
-import JoinGroupView from './components/JoinGroupView.vue'
-import SettingsView from './components/SettingsView.vue'
-import AdminView from './components/AdminView.vue'
+import AuthView from '@/views/AuthView.vue'
+import UpdatePasswordView from '@/views/UpdatePasswordView.vue'
+import DashboardView from '@/views/DashboardView.vue'
+import GroupDetailsView from '@/views/GroupDetailsView.vue'
+import JoinGroupView from '@/views/JoinGroupView.vue'
+import SettingsView from '@/views/SettingsView.vue'
+import AdminView from '@/views/AdminView.vue'
 
 const routes = [
   {

@@ -7,6 +7,6 @@
  */
 export function isRunningAsPWA() {
   const isStandardStandalone = window.matchMedia('(display-mode: standalone)').matches
-  const isIOSStandalone = window.navigator.standalone === true
+  const isIOSStandalone = (window.navigator as any).standalone === true
   return isStandardStandalone || isIOSStandalone
 }

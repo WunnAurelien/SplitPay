@@ -1,16 +1,16 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { state, userGlobalStats, calculateSettlements, actions } from '../store'
-import { useSupabase } from '../supabase'
-import { isRunningAsPWA } from '../usePWA'
-import BaseButton from './ui/BaseButton.vue'
-import BaseModal from './ui/BaseModal.vue'
-import BaseCard from './ui/BaseCard.vue'
-import BaseInput from './ui/BaseInput.vue'
-import ErrorBanner from './ui/ErrorBanner.vue'
-import PullToRefresh from './ui/PullToRefresh.vue'
+import { state, userGlobalStats, calculateSettlements, actions } from '@/store'
+import { useSupabase } from '@/services/supabase'
+import { isRunningAsPWA } from '@/composables/usePWA'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
+import BaseCard from '@/components/ui/BaseCard.vue'
+import BaseInput from '@/components/ui/BaseInput.vue'
+import ErrorBanner from '@/components/ui/ErrorBanner.vue'
+import PullToRefresh from '@/components/ui/PullToRefresh.vue'
 
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -53,15 +53,15 @@ const handleRefresh = async () => {
   await actions.fetchProfiles()
 }
 
-const formatEuro = (amount) => {
+const formatEuro = (amount: number | string | any): string => {
   const val = parseFloat(amount || 0)
   return locale.value === 'fr'
     ? `${val.toFixed(2).replace('.', ',')} €`
     : `€${val.toFixed(2)}`
 }
 
-const getGroupBalanceText = (group) => {
-  const members = group.group_members?.map(gm => gm.profiles).filter(Boolean) || []
+const getGroupBalanceText = (group: any): { text: string; class: string } => {
+  const members = group.group_members?.map((gm: any) => gm.profiles).filter(Boolean) || []
   const expenses = group.expenses || []
   const settlements = calculateSettlements(members, expenses)
   const myBalance = settlements.balances?.find(b => b.profileId === state.session?.user?.id)
@@ -91,20 +91,20 @@ const handleCreateGroup = async () => {
   errorMsg.value = ''
 
   try {
-    const group = await actions.createGroup(newGroupName.value.trim())
+    await actions.createGroup(newGroupName.value.trim())
     closeCreateModal()
   } catch (err) {
-    errorMsg.value = err.message || t('dashboard.createGroupError')
+    errorMsg.value = (err as any).message || t('dashboard.createGroupError')
   } finally {
     isLoading.value = false
   }
 }
 
 const netBalance = computed(() => {
-  return parseFloat((userGlobalStats.netOwedToMe - userGlobalStats.netIOwe).toFixed(2))
+  return parseFloat((userGlobalStats.value.netOwedToMe - userGlobalStats.value.netIOwe).toFixed(2))
 })
 
-const getGroupInitials = (name) => {
+const getGroupInitials = (name: string | null | undefined): string => {
   if (!name) return 'GP'
   const words = name.trim().split(/\s+/)
   if (words.length >= 2) {
@@ -318,7 +318,7 @@ const getGroupInitials = (name) => {
 
 
       <!-- Create Group Modal Dialog -->
-      <BaseModal v-model="isCreateGroupOpen" :title="$t('dashboard.createGroupTitle')" @close="closeCreateModal">
+      <BaseModal v-model="isCreateGroupOpen" :title="$t('dashboard.createGroupTitle')">
         <form @submit.prevent="handleCreateGroup">
           <ErrorBanner v-if="errorMsg" :error="errorMsg" />
 

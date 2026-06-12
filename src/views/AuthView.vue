@@ -1,13 +1,13 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useSupabase } from '../supabase'
-import { actions } from '../store'
-import BaseButton from './ui/BaseButton.vue'
-import BaseCard from './ui/BaseCard.vue'
-import BaseInput from './ui/BaseInput.vue'
-import ErrorBanner from './ui/ErrorBanner.vue'
+import { useSupabase } from '@/services/supabase'
+import { actions } from '@/store'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseCard from '@/components/ui/BaseCard.vue'
+import BaseInput from '@/components/ui/BaseInput.vue'
+import ErrorBanner from '@/components/ui/ErrorBanner.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -24,7 +24,7 @@ const errorMsg = ref('')
 const successMsg = ref('')
 const isLoading = ref(false)
 
-const getTranslationAuthError = (err) => {
+const getTranslationAuthError = (err: any): string => {
   if (!err) return ''
   const msg = err.message || ''
   
@@ -52,7 +52,7 @@ const handleAuth = async () => {
     // Mode réinitialisation de mot de passe
     isLoading.value = true
     try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email.value, {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.value, {
         redirectTo: window.location.origin + '/SplitPay/'
       })
       if (error) throw error
@@ -83,7 +83,7 @@ const handleAuth = async () => {
   
   try {
     if (isLogin.value) {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: email.value,
         password: password.value
       })
@@ -91,7 +91,7 @@ const handleAuth = async () => {
       
       // Successfully logged in — redirect to original destination if one was saved
       await actions.initialize()
-      const redirect = route.query.redirect
+      const redirect = route.query.redirect as string | undefined
       router.push(redirect || '/')
     } else {
       const { data, error } = await supabase.auth.signUp({
@@ -111,7 +111,7 @@ const handleAuth = async () => {
       if (data?.session) {
         // Session immédiate
         await actions.initialize()
-        const redirect = route.query.redirect
+        const redirect = route.query.redirect as string | undefined
         router.push(redirect || '/settings')
       } else {
         // Confirmation d'email requise

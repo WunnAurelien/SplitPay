@@ -1,6 +1,6 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
-import { isRunningAsPWA } from '../../usePWA'
+import { isRunningAsPWA } from '@/composables/usePWA'
 
 const props = defineProps({
   onRefresh: {
@@ -18,8 +18,8 @@ const props = defineProps({
 })
 
 const pullDistance = ref(0)
-const pullState = ref('idle')
-const containerRef = ref(null)
+const pullState = ref<'idle' | 'pulling' | 'threshold' | 'loading'>('idle')
+const containerRef = ref<HTMLElement | null>(null)
 
 const maxPullDistance = 100
 const resistanceFactor = 2.5
@@ -27,23 +27,22 @@ const resistanceFactor = 2.5
 let startY = 0
 let isPulling = false
 let isTouchActive = false
-let hasScrolledFromTop = false
 
 const isPWA = isRunningAsPWA()
 
-const getScrollContainer = () => {
+const getScrollContainer = (): HTMLElement | null => {
   if (isPWA) {
-    let parent = containerRef.value?.parentElement
+    let parent = containerRef.value?.parentElement as HTMLElement | null
     while (parent) {
       const style = window.getComputedStyle(parent)
       const overflowY = style.overflowY || style.overflow
       if (overflowY === 'auto' || overflowY === 'scroll') {
         return parent
       }
-      parent = parent.parentElement
+      parent = parent.parentElement as HTMLElement | null
     }
     const mainEl = document.querySelector('main')
-    if (mainEl) return mainEl
+    if (mainEl) return mainEl as HTMLElement
   }
   return document.body
 }
@@ -72,7 +71,7 @@ const allowBodyScroll = () => {
   }
 }
 
-const onTouchStart = (e) => {
+const onTouchStart = (e: TouchEvent) => {
   // Never activate while already loading
   if (pullState.value === 'loading') return
 
@@ -83,17 +82,15 @@ const onTouchStart = (e) => {
 
   // Only activate when at the very top of the scroll
   if (scrollTop > 0) {
-    hasScrolledFromTop = true
     return
   }
-  hasScrolledFromTop = false
 
   startY = e.touches[0].clientY
   isPulling = true
   isTouchActive = true
 }
 
-const onTouchMove = (e) => {
+const onTouchMove = (e: TouchEvent) => {
   if (!isPulling || pullState.value === 'loading') return
 
   const currentY = e.touches[0].clientY

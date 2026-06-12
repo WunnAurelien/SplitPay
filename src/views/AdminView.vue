@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { state, actions } from '../store'
-import BaseButton from './ui/BaseButton.vue'
-import BaseCard from './ui/BaseCard.vue'
-import ErrorBanner from './ui/ErrorBanner.vue'
-import PullToRefresh from './ui/PullToRefresh.vue'
+import { state, actions } from '@/store'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseCard from '@/components/ui/BaseCard.vue'
+import ErrorBanner from '@/components/ui/ErrorBanner.vue'
+import PullToRefresh from '@/components/ui/PullToRefresh.vue'
 
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -17,9 +17,9 @@ const searchQuery = ref('')
 // Communication Tab State
 const notifTitle = ref('')
 const notifBody = ref('')
-const selectedRecipients = ref([])
+const selectedRecipients = ref<string[]>([])
 const isSending = ref(false)
-const sendResult = ref(null)
+const sendResult = ref<{ success: boolean; count?: number; error?: string } | null>(null)
 const searchRecipientQuery = ref('')
 
 const filteredProfiles = computed(() => {
@@ -133,14 +133,14 @@ const handleSendPush = async () => {
   } catch (err) {
     sendResult.value = {
       success: false,
-      error: err.message || t('admin.sendError')
+      error: (err as any).message || t('admin.sendError')
     }
   } finally {
     isSending.value = false
   }
 }
 
-const toggleRecipient = (profileId) => {
+const toggleRecipient = (profileId: string) => {
   const index = selectedRecipients.value.indexOf(profileId)
   if (index === -1) {
     selectedRecipients.value.push(profileId)
@@ -153,7 +153,7 @@ onMounted(async () => {
   await actions.fetchAdminProfiles()
 })
 
-const handleStatusUpdate = async (userId, newStatus) => {
+const handleStatusUpdate = async (userId: string, newStatus: string) => {
   const confirmMsg = newStatus === 'approved' ? t('admin.confirmApproveUser') : t('admin.confirmRejectUser')
   const ok = await actions.confirm({
     title: newStatus === 'approved' ? t('admin.approveBtn') || 'Approuver' : t('admin.rejectBtn') || 'Rejeter',
@@ -166,12 +166,12 @@ const handleStatusUpdate = async (userId, newStatus) => {
   }
 }
 
-const handleImpersonate = async (profile) => {
+const handleImpersonate = async (profile: any) => {
   await actions.impersonateUser(profile)
   router.push('/')
 }
 
-const handleDelete = async (profile) => {
+const handleDelete = async (profile: any) => {
   const ok = await actions.confirm({
     title: t('admin.deleteBtn') || 'Supprimer',
     message: t('admin.confirmDeleteUser'),

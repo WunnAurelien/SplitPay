@@ -7,15 +7,15 @@
  */
 
 // Store les channels actifs pour pouvoir les nettoyer
-let activeChannels = []
-let globalGroupChannel = null
-let globalProfileChannel = null
-let groupChannels = {} // groupId -> channel
+let activeChannels: any[] = []
+let globalGroupChannel: any = null
+let globalProfileChannel: any = null
+let groupChannels: Record<string, any> = {} // groupId -> channel
 
 /**
  * Crée un channel Supabase avec gestion d'erreur
  */
-function createChannel(supabase, channelName) {
+function createChannel(supabase: any, channelName: string) {
   return supabase.channel(channelName)
 }
 
@@ -37,7 +37,7 @@ function teardownAll() {
  * - groups (INSERT, UPDATE, DELETE)
  * - profiles (UPDATE)
  */
-function setupGlobalChannels(supabase, store) {
+function setupGlobalChannels(supabase: any, store: any) {
   // Éviter les doublons
   teardownAll()
 
@@ -50,7 +50,7 @@ function setupGlobalChannels(supabase, store) {
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'groups' },
-      async (payload) => {
+      async () => {
         // Un nouveau groupe a été créé — refresh la liste complète
         // pour récupérer les group_members et profiles associés
         await store.actions.fetchGroups()
@@ -59,9 +59,9 @@ function setupGlobalChannels(supabase, store) {
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'groups' },
-      (payload) => {
+      (payload: any) => {
         const updatedGroup = payload.new
-        const idx = store.state.groups.findIndex(g => g.id === updatedGroup.id)
+        const idx = store.state.groups.findIndex((g: any) => g.id === updatedGroup.id)
         if (idx !== -1) {
           // Merge les champs modifiés (name notamment)
           store.state.groups[idx] = { ...store.state.groups[idx], ...updatedGroup }
@@ -71,8 +71,8 @@ function setupGlobalChannels(supabase, store) {
     .on(
       'postgres_changes',
       { event: 'DELETE', schema: 'public', table: 'groups' },
-      (payload) => {
-        store.state.groups = store.state.groups.filter(g => g.id !== payload.old.id)
+      (payload: any) => {
+        store.state.groups = store.state.groups.filter((g: any) => g.id !== payload.old.id)
         // Si le groupe supprimé est le groupe actif, le désactiver
         if (store.state.activeGroup?.id === payload.old.id) {
           store.state.activeGroup = null
@@ -82,7 +82,7 @@ function setupGlobalChannels(supabase, store) {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'group_members' },
-      async (payload) => {
+      async () => {
         // Les changements de membres sont complexes (nécessitent profiles)
         // On refresh la liste des groupes et le groupe actif si concerné
         await store.actions.fetchGroups()
@@ -94,7 +94,7 @@ function setupGlobalChannels(supabase, store) {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'expenses' },
-      async (payload) => {
+      async () => {
         // Une dépense a été ajoutée, modifiée ou supprimée — refresh la liste des groupes
         // pour recalculer les soldes du dashboard en direct
         await store.actions.fetchGroups()
@@ -103,7 +103,7 @@ function setupGlobalChannels(supabase, store) {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'expense_beneficiaries' },
-      async (payload) => {
+      async () => {
         // Les bénéficiaires ont changé — refresh la liste des groupes pour recalculer les soldes
         await store.actions.fetchGroups()
       }
@@ -119,7 +119,7 @@ function setupGlobalChannels(supabase, store) {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'profiles' },
-      async (payload) => {
+      async (payload: any) => {
         const eventType = payload.eventType
         const updatedProfile = payload.new || payload.old
 
@@ -142,7 +142,7 @@ function setupGlobalChannels(supabase, store) {
           if (eventType === 'INSERT') {
             await store.actions.fetchAdminProfiles()
           } else if (eventType === 'UPDATE') {
-            const idx = store.state.profiles.findIndex(p => p.id === updatedProfile.id)
+            const idx = store.state.profiles.findIndex((p: any) => p.id === updatedProfile.id)
             if (idx !== -1) {
               store.state.profiles[idx] = { ...store.state.profiles[idx], ...updatedProfile }
             } else {
@@ -150,7 +150,7 @@ function setupGlobalChannels(supabase, store) {
               await store.actions.fetchAdminProfiles()
             }
           } else if (eventType === 'DELETE') {
-            store.state.profiles = store.state.profiles.filter(p => p.id !== updatedProfile.id)
+            store.state.profiles = store.state.profiles.filter((p: any) => p.id !== updatedProfile.id)
           }
         } else {
           // Utilisateur non-admin : ne voit que les profils approuvés
@@ -160,7 +160,7 @@ function setupGlobalChannels(supabase, store) {
             }
           } else if (eventType === 'UPDATE') {
             if (updatedProfile.status === 'approved') {
-              const idx = store.state.profiles.findIndex(p => p.id === updatedProfile.id)
+              const idx = store.state.profiles.findIndex((p: any) => p.id === updatedProfile.id)
               if (idx !== -1) {
                 store.state.profiles[idx] = { ...store.state.profiles[idx], ...updatedProfile }
               } else {
@@ -169,10 +169,10 @@ function setupGlobalChannels(supabase, store) {
               }
             } else {
               // Si un profil n'est plus approuvé, le retirer de la liste
-              store.state.profiles = store.state.profiles.filter(p => p.id !== updatedProfile.id)
+              store.state.profiles = store.state.profiles.filter((p: any) => p.id !== updatedProfile.id)
             }
           } else if (eventType === 'DELETE') {
-            store.state.profiles = store.state.profiles.filter(p => p.id !== updatedProfile.id)
+            store.state.profiles = store.state.profiles.filter((p: any) => p.id !== updatedProfile.id)
           }
         }
       }
@@ -184,7 +184,7 @@ function setupGlobalChannels(supabase, store) {
  * Configure un channel pour un groupe spécifique.
  * Souscrit aux tables expenses et expense_beneficiaries.
  */
-function setupGroupChannel(supabase, groupId, store) {
+function setupGroupChannel(supabase: any, groupId: string, store: any) {
   // Nettoyer l'ancien channel du groupe si existant
   teardownGroupChannel(groupId)
 
@@ -198,7 +198,7 @@ function setupGroupChannel(supabase, groupId, store) {
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'expenses', filter: `group_id=eq.${groupId}` },
-      async (payload) => {
+      async () => {
         // L'INSERT a les champs de base mais pas les beneficiaries
         // On refresh complet pour avoir les relations
         await store.actions.fetchGroupDetails(groupId)
@@ -208,14 +208,14 @@ function setupGroupChannel(supabase, groupId, store) {
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'expenses', filter: `group_id=eq.${groupId}` },
-      async (payload) => {
+      async (payload: any) => {
         const updatedExpense = payload.new
         const oldExpense = payload.old
 
         // Pour les updates simples (description, amount, is_pending, deleted_at),
         // on peut update directement sans re-fetch
         if (store.state.activeGroup) {
-          const idx = store.state.activeGroup.expenses.findIndex(e => e.id === updatedExpense.id)
+          const idx = store.state.activeGroup.expenses.findIndex((e: any) => e.id === updatedExpense.id)
           if (idx !== -1) {
             const existing = store.state.activeGroup.expenses[idx]
             
@@ -246,9 +246,9 @@ function setupGroupChannel(supabase, groupId, store) {
     .on(
       'postgres_changes',
       { event: 'DELETE', schema: 'public', table: 'expenses', filter: `group_id=eq.${groupId}` },
-      (payload) => {
+      (payload: any) => {
         if (store.state.activeGroup) {
-          store.state.activeGroup.expenses = store.state.activeGroup.expenses.filter(e => e.id !== payload.old.id)
+          store.state.activeGroup.expenses = store.state.activeGroup.expenses.filter((e: any) => e.id !== payload.old.id)
         }
       }
     )
@@ -256,10 +256,10 @@ function setupGroupChannel(supabase, groupId, store) {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'expense_beneficiaries' },
-      async (payload) => {
+      async (payload: any) => {
         // Les beneficiaries changent les calculs financiers ⟶ refresh complet
         // On ne refresh que si la dépense concernée appartient au groupe actif
-        if (store.state.activeGroup?.expenses.some(e => e.id === payload.new?.expense_id || e.id === payload.old?.expense_id)) {
+        if (store.state.activeGroup?.expenses.some((e: any) => e.id === payload.new?.expense_id || e.id === payload.old?.expense_id)) {
           await store.actions.fetchGroupDetails(groupId)
         }
       }
@@ -270,7 +270,7 @@ function setupGroupChannel(supabase, groupId, store) {
 /**
  * Désabonne un channel de groupe spécifique
  */
-function teardownGroupChannel(groupId) {
+function teardownGroupChannel(groupId: string) {
   const channel = groupChannels[groupId]
   if (channel) {
     try {

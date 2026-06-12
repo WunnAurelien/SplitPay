@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useSupabase } from '../supabase'
-import BaseButton from './ui/BaseButton.vue'
-import BaseCard from './ui/BaseCard.vue'
-import BaseInput from './ui/BaseInput.vue'
-import ErrorBanner from './ui/ErrorBanner.vue'
+import { useSupabase } from '@/services/supabase'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseCard from '@/components/ui/BaseCard.vue'
+import BaseInput from '@/components/ui/BaseInput.vue'
+import ErrorBanner from '@/components/ui/ErrorBanner.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -59,7 +59,7 @@ const handleUpdatePassword = async () => {
 
   isLoading.value = true
   try {
-    const { data, error } = await supabase.auth.updateUser({ password: newPassword.value })
+    const { error } = await supabase.auth.updateUser({ password: newPassword.value })
     if (error) throw error
 
     await supabase.auth.signOut()
@@ -70,7 +70,7 @@ const handleUpdatePassword = async () => {
     }, 3000)
   } catch (err) {
     console.error('Update password error:', err)
-    errorMsg.value = err.message || t('auth.authErrorFallback')
+    errorMsg.value = (err as any).message || t('auth.authErrorFallback')
   } finally {
     isLoading.value = false
   }

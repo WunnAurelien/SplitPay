@@ -1,13 +1,13 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useSupabase } from '../supabase'
-import { state, actions } from '../store'
-import { isRunningAsPWA } from '../usePWA'
-import BaseButton from './ui/BaseButton.vue'
-import BaseCard from './ui/BaseCard.vue'
-import ErrorBanner from './ui/ErrorBanner.vue'
+import { useSupabase } from '@/services/supabase'
+import { state, actions } from '@/store'
+import { isRunningAsPWA } from '@/composables/usePWA'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseCard from '@/components/ui/BaseCard.vue'
+import ErrorBanner from '@/components/ui/ErrorBanner.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,7 +27,7 @@ const copyAndOpenPWA = async () => {
   }
 }
 
-const groupId = route.params.id
+const groupId = route.params.id as string
 const groupName = ref('')
 const isLoading = ref(true)
 const isJoining = ref(false)
@@ -61,7 +61,7 @@ onMounted(async () => {
     }
   } catch (err) {
     console.error('Error checking join invite:', err)
-    errorMsg.value = err.message || t('group.inviteError') || 'Impossible de charger l\'invitation.'
+    errorMsg.value = (err as any).message || t('group.inviteError') || 'Impossible de charger l\'invitation.'
   } finally {
     isLoading.value = false
   }
@@ -94,7 +94,7 @@ const handleJoin = async () => {
     router.push(`/group/${groupId}`)
   } catch (err) {
     console.error('Error joining group:', err)
-    errorMsg.value = err.message || t('group.joinFailed') || 'Impossible de rejoindre le groupe.'
+    errorMsg.value = (err as any).message || t('group.joinFailed') || 'Impossible de rejoindre le groupe.'
   } finally {
     isJoining.value = false
   }

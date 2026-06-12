@@ -1,13 +1,12 @@
-<script setup>
+<script setup lang="ts">
 import { onMounted, onUnmounted, watch, ref, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { state, isApproved, actions } from './store'
-import { useSupabase } from './supabase'
-import { isRunningAsPWA } from './usePWA'
-import BaseButton from './components/ui/BaseButton.vue'
-import BaseModal from './components/ui/BaseModal.vue'
-import ErrorBanner from './components/ui/ErrorBanner.vue'
+import { state, isApproved, actions } from '@/store'
+import { useSupabase } from '@/services/supabase'
+import { isRunningAsPWA } from '@/composables/usePWA'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 
 const router = useRouter()
 const { locale, t } = useI18n()
@@ -20,7 +19,7 @@ const isAlertOpen = ref(false)
 let scrollPosition = 0
 
 // Map locales to flag icons
-const localeFlags = {
+const localeFlags: Record<string, { code: string; label: string }> = {
   fr: { code: 'fr', label: 'FR' },
   en: { code: 'gb', label: 'EN' }
 }
@@ -67,6 +66,18 @@ watch(() => state.confirmState?.isOpen, (isOpen) => {
 
 watch(() => state.alertState?.isOpen, (isOpen) => {
   isAlertOpen.value = !!isOpen
+})
+
+watch(isConfirmOpen, (isOpen) => {
+  if (!isOpen && state.confirmState.isOpen) {
+    state.confirmState.reject?.()
+  }
+})
+
+watch(isAlertOpen, (isOpen) => {
+  if (!isOpen && state.alertState.isOpen) {
+    state.alertState.resolve?.()
+  }
 })
 
 watch(locale, (newLocale) => {
@@ -167,9 +178,9 @@ const saveLocale = async () => {
   }
 }
 
-const getStatusLabel = (status) => {
+const getStatusLabel = (status: string | null | undefined): string => {
   if (!status) return ''
-  const labels = {
+  const labels: Record<string, string> = {
     approved: t('settings.approved'),
     pending: t('settings.pending'),
     rejected: t('settings.rejected')
@@ -265,7 +276,7 @@ const stopImpersonating = async () => {
           <div class="flex flex-col gap-4">
             <div class="flex items-center gap-3">
               <div class="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center font-bold">
-                {{ (state.profile?.username || state.session?.user?.email)[0]?.toUpperCase() }}
+                {{ (state.profile?.username || state.session?.user?.email || '?')[0].toUpperCase() }}
               </div>
               <div>
                 <div class="font-semibold truncate max-w-[140px]">{{ state.profile?.username || state.session?.user?.email }}</div>
@@ -292,16 +303,16 @@ const stopImpersonating = async () => {
     </main>
 
     <!-- Confirm Dialog Modal -->
-    <BaseModal v-model="isConfirmOpen" :title="state.confirmState.title" :show-close="false" @close="state.confirmState.reject?.()">
+    <BaseModal v-model="isConfirmOpen" :title="state.confirmState.title" :show-close="false">
       <p>{{ state.confirmState.message }}</p>
       <template #actions>
         <BaseButton @click="state.confirmState.reject?.()" variant="secondary" size="sm">{{ state.confirmState.cancelText }}</BaseButton>
-        <BaseButton @click="state.confirmState.resolve?.()" variant="primary" size="sm">{{ state.confirmState.confirmText }}</BaseButton>
+        <BaseButton @click="state.confirmState.resolve?.(true)" variant="primary" size="sm">{{ state.confirmState.confirmText }}</BaseButton>
       </template>
     </BaseModal>
 
     <!-- Alert Dialog Modal -->
-    <BaseModal v-model="isAlertOpen" :title="state.alertState.title" :show-close="false" @close="state.alertState.resolve?.()">
+    <BaseModal v-model="isAlertOpen" :title="state.alertState.title" :show-close="false">
       <p>{{ state.alertState.message }}</p>
       <template #actions>
         <BaseButton @click="state.alertState.resolve?.()" variant="primary" size="sm">{{ state.alertState.okText }}</BaseButton>

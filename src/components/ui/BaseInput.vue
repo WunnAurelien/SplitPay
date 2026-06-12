@@ -6,7 +6,7 @@
       :type="type"
       :id="id"
       :value="modelValue"
-      @input="$emit('update:modelValue', $event.target.value)"
+      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       class="input input-bordered w-full"
       v-bind="$attrs"
     />
@@ -14,7 +14,7 @@
       v-else-if="type === 'textarea'"
       :id="id"
       :value="modelValue"
-      @input="$emit('update:modelValue', $event.target.value)"
+      @input="$emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
       class="textarea textarea-bordered w-full"
       v-bind="$attrs"
     ></textarea>
@@ -22,7 +22,7 @@
       v-else
       :id="id"
       :value="modelValue"
-      @change="$emit('update:modelValue', $event.target.value)"
+      @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
       class="select select-bordered w-full"
       v-bind="$attrs"
     >
@@ -31,7 +31,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   modelValue: {
     type: [String, Number],

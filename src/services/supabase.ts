@@ -8,7 +8,7 @@ const useMock = !supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('placeh
 
 console.log(`[SplitPay] Initializing in ${useMock ? 'LocalStorage MOCK' : 'PRODUCTION SUPABASE'} mode.`);
 
-let supabase;
+let supabase: any;
 
 if (!useMock) {
   supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -16,11 +16,11 @@ if (!useMock) {
   // --- MOCK DATABASE IMPLEMENTATION ---
   
   // Helper to get local tables
-  const getTable = (name) => JSON.parse(localStorage.getItem(`splitpay_${name}`) || '[]');
-  const saveTable = (name, data) => localStorage.setItem(`splitpay_${name}`, JSON.stringify(data));
+  const getTable = (name: string): any[] => JSON.parse(localStorage.getItem(`splitpay_${name}`) || '[]');
+  const saveTable = (name: string, data: any[]): void => localStorage.setItem(`splitpay_${name}`, JSON.stringify(data));
 
   // Initialize empty tables if not present
-  const initTables = () => {
+  const initTables = (): void => {
     const tables = ['app_config', 'profiles', 'groups', 'group_members', 'expenses', 'expense_beneficiaries', 'users'];
     tables.forEach(t => {
       if (!localStorage.getItem(`splitpay_${t}`)) {
@@ -32,7 +32,13 @@ if (!useMock) {
 
   // Mock Query Builder
   class MockQueryBuilder {
-    constructor(table) {
+    table: string;
+    filters: ((item: any) => boolean)[];
+    isSingle: boolean;
+    orderBy: { col: string; ascending: boolean } | null;
+    selectFields: string;
+
+    constructor(table: string) {
       this.table = table;
       this.filters = [];
       this.isSingle = false;
@@ -45,12 +51,12 @@ if (!useMock) {
       return this;
     }
 
-    eq(col, val) {
+    eq(col: string, val: any) {
       this.filters.push(item => item[col] === val);
       return this;
     }
 
-    in(col, vals) {
+    in(col: string, vals: any[]) {
       this.filters.push(item => vals.includes(item[col]));
       return this;
     }
@@ -60,13 +66,13 @@ if (!useMock) {
       return this;
     }
 
-    order(col, { ascending = true } = {}) {
+    order(col: string, { ascending = true } = {}) {
       this.orderBy = { col, ascending };
       return this;
     }
 
     // Resolves joins and retrieves data
-    getData() {
+    getData(): any[] {
       let data = getTable(this.table);
       
       // Apply filters
@@ -76,31 +82,31 @@ if (!useMock) {
       if (this.table === 'groups') {
         const profiles = getTable('profiles');
         data = data.map(group => {
-          let groupMembers = undefined;
+          let groupMembers: any = undefined;
           if (this.selectFields.includes('group_members')) {
             const members = getTable('group_members');
             groupMembers = members
-              .filter(m => m.group_id === group.id)
-              .map(m => {
-                const profile = profiles.find(p => p.id === m.profile_id);
+              .filter((m: any) => m.group_id === group.id)
+              .map((m: any) => {
+                const profile = profiles.find((p: any) => p.id === m.profile_id);
                 return { ...m, profiles: profile };
               });
           }
 
-          let expenses = undefined;
+          let expenses: any = undefined;
           if (this.selectFields.includes('expenses')) {
             const allExpenses = getTable('expenses');
             const beneficiaries = getTable('expense_beneficiaries');
             expenses = allExpenses
-              .filter(e => e.group_id === group.id)
-              .map(expense => {
+              .filter((e: any) => e.group_id === group.id)
+              .map((expense: any) => {
                 const bList = beneficiaries
-                  .filter(b => b.expense_id === expense.id)
-                  .map(b => {
-                    const profile = profiles.find(p => p.id === b.profile_id);
+                  .filter((b: any) => b.expense_id === expense.id)
+                  .map((b: any) => {
+                    const profile = profiles.find((p: any) => p.id === b.profile_id);
                     return { ...b, profiles: profile };
                   });
-                const payer = profiles.find(p => p.id === expense.paid_by);
+                const payer = profiles.find((p: any) => p.id === expense.paid_by);
                 return {
                   ...expense,
                   expense_beneficiaries: bList,
@@ -109,9 +115,9 @@ if (!useMock) {
               });
           }
 
-          const creator = profiles.find(p => p.id === group.created_by);
+          const creator = profiles.find((p: any) => p.id === group.created_by);
 
-          const result = { ...group };
+          const result: any = { ...group };
           if (groupMembers !== undefined) result.group_members = groupMembers;
           if (expenses !== undefined) result.expenses = expenses;
           result.profiles = creator;
@@ -124,13 +130,13 @@ if (!useMock) {
         const profiles = getTable('profiles');
         data = data.map(expense => {
           const bList = beneficiaries
-            .filter(b => b.expense_id === expense.id)
-            .map(b => {
-              const profile = profiles.find(p => p.id === b.profile_id);
+            .filter((b: any) => b.expense_id === expense.id)
+            .map((b: any) => {
+              const profile = profiles.find((p: any) => p.id === b.profile_id);
               return { ...b, profiles: profile };
             });
           
-          const payer = profiles.find(p => p.id === expense.paid_by);
+          const payer = profiles.find((p: any) => p.id === expense.paid_by);
           return {
             ...expense,
             expense_beneficiaries: bList,
@@ -156,7 +162,7 @@ if (!useMock) {
       return data;
     }
 
-    async then(resolve) {
+    async then(resolve: (value: { data: any; error: any }) => void) {
       try {
         let data = this.getData();
         if (this.isSingle) {
@@ -165,21 +171,21 @@ if (!useMock) {
         resolve({ data, error: null });
       } catch (e) {
         console.error('Mock Query Error:', e);
-        resolve({ data: null, error: { message: e.message } });
+        resolve({ data: null, error: { message: (e as any).message } });
       }
     }
 
-    async insert(rowOrRows) {
+    async insert(rowOrRows: any) {
       const data = getTable(this.table);
       const rows = Array.isArray(rowOrRows) ? rowOrRows : [rowOrRows];
-      const inserted = rows.map(r => {
+      const inserted = rows.map((r: any) => {
         const newRow = { ...r };
         if (this.table === 'groups' && !newRow.id) newRow.id = crypto.randomUUID();
         if (this.table === 'expenses') {
           if (!newRow.id) newRow.id = crypto.randomUUID();
           if (newRow.paid_by) {
             const profiles = getTable('profiles');
-            const profile = profiles.find(p => p.id === newRow.paid_by);
+            const profile = profiles.find((p: any) => p.id === newRow.paid_by);
             newRow.paid_by_name = profile ? (profile.username || profile.email) : '';
           }
         }
@@ -193,7 +199,7 @@ if (!useMock) {
       // Trigger Simulation for handle_new_user and admin setup
       if (this.table === 'profiles') {
         const configs = getTable('app_config');
-        const adminConfig = configs.find(c => c.key === 'admin_uuid');
+        const adminConfig = configs.find((c: any) => c.key === 'admin_uuid');
         
         // If there's no admin configuration, the first inserted profile becomes admin and is approved
         if (!adminConfig) {
@@ -206,7 +212,7 @@ if (!useMock) {
           
           // Force approved status for first user (admin)
           inserted[0].status = 'approved';
-          saveTable('profiles', getTable('profiles').map(p => p.id === inserted[0].id ? { ...p, status: 'approved' } : p));
+          saveTable('profiles', getTable('profiles').map((p: any) => p.id === inserted[0].id ? { ...p, status: 'approved' } : p));
         }
       }
 
@@ -220,10 +226,10 @@ if (!useMock) {
       };
     }
 
-    async update(updateData) {
+    async update(updateData: any) {
       const data = getTable(this.table);
-      let updated = data.map(item => {
-        const matches = this.filters.every(f => f(item));
+      let updated = data.map((item: any) => {
+        const matches = this.filters.every((f: any) => f(item));
         if (matches) {
           return { ...item, ...updateData };
         }
@@ -235,14 +241,14 @@ if (!useMock) {
 
     async delete() {
       const data = getTable(this.table);
-      const remaining = data.filter(item => !this.filters.every(f => f(item)));
+      const remaining = data.filter((item: any) => !this.filters.every((f: any) => f(item)));
       saveTable(this.table, remaining);
       return { data: null, error: null };
     }
   }
 
   // Session state stored inside window/local variable for reactivity
-  let currentSession = null;
+  let currentSession: any = null;
   const storedSession = localStorage.getItem('splitpay_session');
   if (storedSession) {
     try {
@@ -250,13 +256,13 @@ if (!useMock) {
     } catch (_) {}
   }
 
-  const authCallbacks = [];
+  const authCallbacks: any[] = [];
 
   supabase = {
     auth: {
-      async signUp({ email, password, options = {} }) {
+      async signUp({ email, password, options = {} as any }: { email: any; password: any; options?: any }) {
         const users = getTable('users');
-        if (users.find(u => u.email === email)) {
+        if (users.find((u: any) => u.email === email)) {
           return { data: null, error: { message: 'User already exists.' } };
         }
 
@@ -269,7 +275,6 @@ if (!useMock) {
         saveTable('users', users);
 
         // Simulate DB trigger: insert into profiles
-        const profiles = getTable('profiles');
         const displayName = options.data?.username || email.split('@')[0];
         const newProfile = {
           id: newUser.id,
@@ -289,7 +294,7 @@ if (!useMock) {
 
         // Get the updated profile to see if it got approved as admin
         const updatedProfiles = getTable('profiles');
-        const savedProfile = updatedProfiles.find(p => p.id === newUser.id);
+        const savedProfile = updatedProfiles.find((p: any) => p.id === newUser.id);
 
         const session = {
           access_token: 'mock-token',
@@ -304,15 +309,15 @@ if (!useMock) {
         return { data: { user: newUser, session }, error: null };
       },
 
-      async signInWithPassword({ email, password }) {
+      async signInWithPassword({ email, password }: any) {
         const users = getTable('users');
-        const user = users.find(u => u.email === email && u.password === password);
+        const user = users.find((u: any) => u.email === email && u.password === password);
         if (!user) {
           return { data: null, error: { message: 'Invalid credentials.' } };
         }
 
         const profiles = getTable('profiles');
-        const profile = profiles.find(p => p.id === user.id);
+        const profile = profiles.find((p: any) => p.id === user.id);
 
         const session = {
           access_token: 'mock-token',
@@ -342,7 +347,7 @@ if (!useMock) {
         return { data: { user: currentSession?.user || null }, error: null };
       },
 
-      async updateUser(updateData) {
+      async updateUser(updateData: any) {
         if (!currentSession) {
           return { data: null, error: { message: 'Not authenticated.' } };
         }
@@ -350,7 +355,7 @@ if (!useMock) {
         if (updateData.password) {
           // Mettre à jour le mot de passe dans la table users
           const users = getTable('users');
-          const updatedUsers = users.map(u => {
+          const updatedUsers = users.map((u: any) => {
             if (u.id === currentSession.user.id) {
               return { ...u, password: updateData.password };
             }
@@ -362,9 +367,9 @@ if (!useMock) {
         return { data: { user: currentSession.user }, error: null };
       },
 
-      async resetPasswordForEmail(email, options = {}) {
+      async resetPasswordForEmail(email: string, options: any = {}) {
         const users = getTable('users');
-        const user = users.find(u => u.email === email);
+        const user = users.find((u: any) => u.email === email);
         if (!user) {
           // Simuler Supabase qui ne révèle pas si l'email existe ou non
           return { data: null, error: null };
@@ -372,7 +377,7 @@ if (!useMock) {
 
         // En mode mock, on stocke un token de recovery dans le user
         const recoveryToken = crypto.randomUUID();
-        const updatedUsers = users.map(u => {
+        const updatedUsers = users.map((u: any) => {
           if (u.email === email) {
             return { ...u, recovery_token: recoveryToken, recovery_expires: Date.now() + 3600000 };
           }
@@ -393,13 +398,13 @@ if (!useMock) {
         return { data: null, error: null };
       },
 
-      async verifyOtp({ type, token_hash }) {
+      async verifyOtp({ type, token_hash }: any) {
         if (type !== 'recovery') {
           return { data: null, error: { message: 'Invalid OTP type.' } };
         }
 
         const users = getTable('users');
-        const user = users.find(u => u.recovery_token === token_hash);
+        const user = users.find((u: any) => u.recovery_token === token_hash);
 
         if (!user || user.recovery_expires < Date.now()) {
           return { data: null, error: { message: 'Invalid or expired recovery token.' } };
@@ -407,7 +412,7 @@ if (!useMock) {
 
         // Créer une session temporaire pour permettre le changement de mot de passe
         const profiles = getTable('profiles');
-        const profile = profiles.find(p => p.id === user.id);
+        const profile = profiles.find((p: any) => p.id === user.id);
 
         const session = {
           access_token: 'mock-token-recovery',
@@ -423,7 +428,7 @@ if (!useMock) {
         return { data: { session }, error: null };
       },
 
-      onAuthStateChange(callback) {
+      onAuthStateChange(callback: any) {
         authCallbacks.push(callback);
         // Call immediately with current state
         callback(currentSession ? 'SIGNED_IN' : 'SIGNED_OUT', currentSession);
@@ -440,13 +445,13 @@ if (!useMock) {
       }
     },
 
-    async rpc(funcName, args = {}) {
-      const getTable = (name) => JSON.parse(localStorage.getItem(`splitpay_${name}`) || '[]');
-      const saveTable = (name, data) => localStorage.setItem(`splitpay_${name}`, JSON.stringify(data));
+    async rpc(funcName: string, args: any = {}) {
+      const getTable = (name: string): any[] => JSON.parse(localStorage.getItem(`splitpay_${name}`) || '[]');
+      const saveTable = (name: string, data: any[]): void => localStorage.setItem(`splitpay_${name}`, JSON.stringify(data));
 
       if (funcName === 'setup_admin_if_needed') {
         const configs = getTable('app_config');
-        let adminConfig = configs.find(c => c.key === 'admin_uuid');
+        let adminConfig = configs.find((c: any) => c.key === 'admin_uuid');
         const currentUserId = currentSession?.user?.id;
         
         if (!currentUserId) {
@@ -464,12 +469,12 @@ if (!useMock) {
 
           // Auto-approve the admin profile
           const profiles = getTable('profiles');
-          const updated = profiles.map(p => p.id === currentUserId ? { ...p, status: 'approved' } : p);
+          const updated = profiles.map((p: any) => p.id === currentUserId ? { ...p, status: 'approved' } : p);
           saveTable('profiles', updated);
         }
 
         const profiles = getTable('profiles');
-        const callerProfile = profiles.find(p => p.id === currentUserId);
+        const callerProfile = profiles.find((p: any) => p.id === currentUserId);
 
         return {
           data: {
@@ -489,7 +494,7 @@ if (!useMock) {
         }
 
         const configs = getTable('app_config');
-        const adminConfig = configs.find(c => c.key === 'admin_uuid');
+        const adminConfig = configs.find((c: any) => c.key === 'admin_uuid');
         if (!adminConfig || adminConfig.value !== currentUserId) {
           return { data: { error: 'Only the administrator can delete users.' }, error: null };
         }
@@ -500,23 +505,23 @@ if (!useMock) {
 
         // Delete from users
         const users = getTable('users');
-        saveTable('users', users.filter(u => u.id !== targetUserId));
+        saveTable('users', users.filter((u: any) => u.id !== targetUserId));
 
         // Delete from profiles
         const profiles = getTable('profiles');
-        saveTable('profiles', profiles.filter(p => p.id !== targetUserId));
+        saveTable('profiles', profiles.filter((p: any) => p.id !== targetUserId));
 
         // Delete from group_members
         const memberships = getTable('group_members');
-        saveTable('group_members', memberships.filter(m => m.profile_id !== targetUserId));
+        saveTable('group_members', memberships.filter((m: any) => m.profile_id !== targetUserId));
 
         // Delete from expense_beneficiaries
         const beneficiaries = getTable('expense_beneficiaries');
-        saveTable('expense_beneficiaries', beneficiaries.filter(b => b.profile_id !== targetUserId));
+        saveTable('expense_beneficiaries', beneficiaries.filter((b: any) => b.profile_id !== targetUserId));
 
         // Set paid_by to null on expenses table for deleted profile
         const expenses = getTable('expenses');
-        const updatedExpenses = expenses.map(e => {
+        const updatedExpenses = expenses.map((e: any) => {
           if (e.paid_by === targetUserId) {
             return { ...e, paid_by: null };
           }
@@ -530,11 +535,11 @@ if (!useMock) {
       return { data: null, error: { message: `RPC function ${funcName} not mocked.` } };
     },
 
-    from(table) {
+    from(table: string) {
       return new MockQueryBuilder(table);
     },
     functions: {
-      async invoke(funcName, { body } = {}) {
+      async invoke(funcName: string, { body } = {} as any) {
         console.log(`[Mock Push] Invoked function '${funcName}' with body:`, body);
         await new Promise(resolve => setTimeout(resolve, 600));
         return { data: { success: true }, error: null };

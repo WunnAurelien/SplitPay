@@ -9,7 +9,7 @@
   </component>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   interactive: {
     type: Boolean,

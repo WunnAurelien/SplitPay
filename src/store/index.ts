@@ -1,11 +1,19 @@
 import { reactive, computed } from 'vue'
-import { useSupabase } from './supabase'
-import { setupGlobalChannels, setupGroupChannel, teardownAll, teardownGroupChannel } from './realtime'
-import i18n from './i18n'
+import { useSupabase } from '@/services/supabase'
+import { setupGlobalChannels, setupGroupChannel, teardownAll } from '@/services/realtime'
+import i18n from '@/i18n'
+import type { 
+  Profile, 
+  Expense, 
+  Session, 
+  State, 
+  SettlementResult, 
+  SettlementTransaction 
+} from '@/types/store'
 
 const { supabase, useMock } = useSupabase()
 
-const state = reactive({
+const state = reactive<State>({
   session: null,
   profile: null,
   isAdmin: false,
@@ -40,11 +48,11 @@ const state = reactive({
 const isApproved = computed(() => state.profile?.status === 'approved')
 
 // Computes the optimal settlements (minimum cash transfers) using a greedy algorithm
-const calculateSettlements = (members, expenses) => {
-  if (!members || members.length === 0) return []
+const calculateSettlements = (members: any[], expenses: any[]): SettlementResult => {
+  if (!members || members.length === 0) return { balances: [], transactions: [] }
 
   // Initialize balances map
-  const balances = {}
+  const balances: Record<string, number> = {}
   members.forEach(m => {
     balances[m.id] = 0
   })
@@ -59,7 +67,7 @@ const calculateSettlements = (members, expenses) => {
     if (beneficiaries.length === 0) return
 
     // Sum total parts
-    const totalParts = beneficiaries.reduce((sum, b) => sum + parseFloat(b.parts), 0)
+    const totalParts = beneficiaries.reduce((sum: number, b: any) => sum + parseFloat(b.parts), 0)
     if (totalParts === 0) return
 
     // Add paid amount to the payer's balance
@@ -68,7 +76,7 @@ const calculateSettlements = (members, expenses) => {
     }
 
     // Subtract individual shares from beneficiaries' balances
-    beneficiaries.forEach(b => {
+    beneficiaries.forEach((b: any) => {
       const share = (parseFloat(b.parts) / totalParts) * amount
       if (balances[b.profile_id] !== undefined) {
         balances[b.profile_id] -= share
@@ -77,8 +85,8 @@ const calculateSettlements = (members, expenses) => {
   })
 
   // Separate debtors and creditors
-  const debtors = []
-  const creditors = []
+  const debtors: { id: string; balance: number }[] = []
+  const creditors: { id: string; balance: number }[] = []
 
   Object.keys(balances).forEach(id => {
     const bal = balances[id]
@@ -94,7 +102,7 @@ const calculateSettlements = (members, expenses) => {
   debtors.sort((a, b) => a.balance - b.balance)
   creditors.sort((a, b) => b.balance - a.balance)
 
-  const transactions = []
+  const transactions: SettlementTransaction[] = []
   let dIdx = 0
   let cIdx = 0
 
@@ -170,11 +178,18 @@ const calculateSettlements = (members, expenses) => {
 }
 
 const actions = {
-  setError(err) {
+  setError(err: any) {
     state.error = err ? (err.message || err) : null
   },
 
-  async sendPushNotification({ recipientIds, type, params, url, title, body }) {
+  async sendPushNotification({ recipientIds, type, params, url, title, body }: {
+    recipientIds: string[]
+    type?: string
+    params?: any
+    url?: string
+    title?: string
+    body?: string
+  }) {
     if (!recipientIds || recipientIds.length === 0) return
     
     if (useMock) {
@@ -200,7 +215,7 @@ const actions = {
     }
   },
 
-  confirm({ title, message, confirmText, cancelText }) {
+  confirm({ title, message, confirmText, cancelText }: { title?: string; message?: string; confirmText?: string; cancelText?: string }): Promise<boolean> {
     state.confirmState.title = title || ''
     state.confirmState.message = message || ''
     state.confirmState.confirmText = confirmText || ''
@@ -208,9 +223,9 @@ const actions = {
     state.confirmState.isOpen = true
     
     return new Promise((resolve) => {
-      state.confirmState.resolve = () => {
+      state.confirmState.resolve = (val: boolean) => {
         state.confirmState.isOpen = false
-        resolve(true)
+        resolve(val)
       }
       state.confirmState.reject = () => {
         state.confirmState.isOpen = false
@@ -219,13 +234,13 @@ const actions = {
     })
   },
 
-  alert({ title, message, okText }) {
+  alert({ title, message, okText }: { title?: string; message?: string; okText?: string }): Promise<void> {
     state.alertState.title = title || ''
     state.alertState.message = message || ''
     state.alertState.okText = okText || 'OK'
     state.alertState.isOpen = true
     
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       state.alertState.resolve = () => {
         state.alertState.isOpen = false
         resolve()
@@ -233,7 +248,7 @@ const actions = {
     })
   },
 
-  setConnectionError(err) {
+  setConnectionError(err: any) {
     state.connectionError = err ? (err.message || err) : null
   },
 
@@ -264,7 +279,7 @@ const actions = {
       }
 
       // 3. Setup background listener for auth updates (login, logout, token refresh)
-      supabase.auth.onAuthStateChange(async (event, newSession) => {
+      supabase.auth.onAuthStateChange(async (event: any, newSession: any) => {
         // Skip handling during initial load to prevent parallel race conditions
         if (!state.isInitialized) return
 
@@ -316,7 +331,7 @@ const actions = {
     
     // Call Supabase signOut in the background without awaiting it.
     // This prevents any hanging promise (due to invalid API key or connection issues) from blocking the local signout flow.
-    supabase.auth.signOut().catch(e => {
+    supabase.auth.signOut().catch((e: any) => {
       console.error('Non-blocking Supabase signOut failed:', e)
     })
 
@@ -340,7 +355,7 @@ const actions = {
     state.loading = false
   },
 
-  async fetchProfile(userId) {
+  async fetchProfile(userId: string) {
     try {
       // Fetch profile as an array instead of .single() to avoid throwing on empty results
       const { data: profilesList, error: pError } = await supabase
@@ -354,6 +369,7 @@ const actions = {
       
       // Self-healing check: if Auth user is present but profile table is missing their row (e.g. trigger failed)
       if (!profile) {
+        if (!state.session?.user) return
         const { data: newProfile, error: insError } = await supabase
           .from('profiles')
           .insert({
@@ -460,7 +476,7 @@ const actions = {
     }
   },
 
-  async updateProfile({ username, paymentLink, phoneNumber, iban }) {
+  async updateProfile({ username, paymentLink, phoneNumber, iban }: { username: string; paymentLink: string; phoneNumber: string; iban: string }) {
     if (!state.session?.user) return
     state.loading = true
     state.error = null
@@ -476,10 +492,12 @@ const actions = {
         .eq('id', state.session.user.id)
 
       if (error) throw error
-      state.profile.username = username
-      state.profile.payment_link = paymentLink
-      state.profile.phone_number = phoneNumber
-      state.profile.iban = iban
+      if (state.profile) {
+        state.profile.username = username
+        state.profile.payment_link = paymentLink
+        state.profile.phone_number = phoneNumber
+        state.profile.iban = iban
+      }
     } catch (e) {
       this.setError(e)
       throw e
@@ -488,7 +506,7 @@ const actions = {
     }
   },
 
-  async updateLocale(locale) {
+  async updateLocale(locale: string) {
     if (!state.session?.user) return
     try {
       const { error } = await supabase
@@ -518,9 +536,9 @@ const actions = {
 
       // Client-side filtering to correctly support LocalStorage Mock mode and Impersonation testing
       const currentUserId = state.session?.user?.id
-      const filtered = data.filter(g => {
+      const filtered = data.filter((g: any) => {
         if (!g.group_members) return false
-        return g.group_members.some(m => m.profile_id === currentUserId)
+        return g.group_members.some((m: any) => m.profile_id === currentUserId)
       })
 
       state.groups = filtered
@@ -546,7 +564,7 @@ const actions = {
     }
   },
 
-  async fetchGroupDetails(groupId) {
+  async fetchGroupDetails(groupId: string) {
     state.loading = true
     state.error = null
     try {
@@ -571,9 +589,9 @@ const actions = {
       // Map member profiles
       // Since group contains group_members which has joined profiles in Mock,
       // let's make sure it handles both Mock and Real database mapping.
-      let members = []
+      let members: any[] = []
       if (group.group_members) {
-        members = group.group_members.map(gm => {
+        members = group.group_members.map((gm: any) => {
           if (!gm.profiles) return null
           return {
             ...gm.profiles,
@@ -602,7 +620,7 @@ const actions = {
     }
   },
 
-  async createGroup(name) {
+  async createGroup(name: string) {
     if (!state.session?.user) return
     state.loading = true
     state.error = null
@@ -634,7 +652,7 @@ const actions = {
     }
   },
 
-  async addGroupMember(groupId, profileId) {
+  async addGroupMember(groupId: string, profileId: string) {
     state.loading = true
     state.error = null
     try {
@@ -663,7 +681,7 @@ const actions = {
     }
   },
 
-  async joinGroup(groupId) {
+  async joinGroup(groupId: string) {
     if (!state.session?.user) return
     state.loading = true
     state.error = null
@@ -680,8 +698,8 @@ const actions = {
       const group = state.groups.find(g => g.id === groupId)
       if (group) {
         const otherMemberIds = group.group_members
-          ?.map(gm => gm.profile_id)
-          .filter(id => id !== state.session.user.id) || []
+          ?.map((gm: any) => gm.profile_id)
+          .filter((id: string) => id !== state.session!.user.id) || []
         
         if (otherMemberIds.length > 0) {
           const joinerName = state.profile?.username || state.profile?.email || i18n.global.t('admin.noHandle')
@@ -701,21 +719,21 @@ const actions = {
     }
   },
 
-  async removeGroupMember(groupId, profileId) {
+  async removeGroupMember(groupId: string, profileId: string) {
     state.loading = true
     state.error = null
     try {
       const group = state.groups.find(g => g.id === groupId) || state.activeGroup
       const groupName = group?.name || 'Groupe'
       
-      const memberObj = group?.group_members?.find(m => m.profile_id === profileId)?.profiles
+      const memberObj = group?.group_members?.find((m: any) => m.profile_id === profileId)?.profiles
         || state.activeGroup?.members?.find(m => m.id === profileId)
       
       const memberName = memberObj?.username || memberObj?.email || i18n.global.t('admin.noHandle')
       
       const otherMemberIds = group?.group_members
-        ?.map(gm => gm.profile_id)
-        ?.filter(id => id !== profileId)
+        ?.map((gm: any) => gm.profile_id)
+        ?.filter((id: string) => id !== profileId)
         || state.activeGroup?.members
           ?.map(m => m.id)
           ?.filter(id => id !== profileId)
@@ -729,7 +747,7 @@ const actions = {
 
       if (error) throw error
       
-      if (profileId === state.session.user.id) {
+      if (state.session?.user && profileId === state.session.user.id) {
         // Left the group, notify other members
         if (otherMemberIds.length > 0) {
           await this.sendPushNotification({
@@ -759,7 +777,7 @@ const actions = {
     }
   },
 
-  async updateGroupMemberNote(groupId, profileId, note) {
+  async updateGroupMemberNote(groupId: string, profileId: string, note: string) {
     state.loading = true
     state.error = null
     try {
@@ -785,7 +803,14 @@ const actions = {
     }
   },
 
-  async addExpense({ groupId, description, amount, paidBy, splits, isPending = false }) {
+  async addExpense({ groupId, description, amount, paidBy, splits, isPending = false }: {
+    groupId: string
+    description: string
+    amount: string | number
+    paidBy: string
+    splits: Array<{ profileId: string; parts: string | number }>
+    isPending?: boolean
+  }) {
     state.loading = true
     state.error = null
     try {
@@ -795,20 +820,20 @@ const actions = {
         .insert({
           group_id: groupId,
           description,
-          amount: parseFloat(amount),
+          amount: typeof amount === 'string' ? parseFloat(amount) : amount,
           paid_by: paidBy,
           is_pending: isPending
         })
         .select()
         .single()
-
+      
       if (eError) throw eError
 
       // 2. Insert beneficiaries
       const beneficiaries = splits.map(s => ({
         expense_id: expense.id,
         profile_id: s.profileId,
-        parts: parseFloat(s.parts)
+        parts: typeof s.parts === 'string' ? parseFloat(s.parts) : s.parts
       }))
 
       const { error: bError } = await supabase
@@ -833,7 +858,7 @@ const actions = {
             await this.sendPushNotification({
               recipientIds: [creditorId],
               type: 'settlement',
-              params: { payerName, amount: parseFloat(amount).toFixed(2), groupName },
+              params: { payerName, amount: parseFloat(amount as string).toFixed(2), groupName },
               url: `/SplitPay/group/${groupId}`
             })
           }
@@ -847,7 +872,7 @@ const actions = {
             await this.sendPushNotification({
               recipientIds: otherMemberIds,
               type: 'new_expense',
-              params: { payerName, description, amount: parseFloat(amount).toFixed(2), groupName },
+              params: { payerName, description, amount: parseFloat(amount as string).toFixed(2), groupName },
               url: `/SplitPay/group/${groupId}`
             })
           }
@@ -861,14 +886,14 @@ const actions = {
     }
   },
 
-  async deleteExpense(groupId, expenseId) {
+  async deleteExpense(groupId: string, expenseId: string) {
     state.loading = true
     state.error = null
     try {
       const group = state.groups.find(g => g.id === groupId) || state.activeGroup
       const groupName = group?.name || 'Groupe'
       const expense = state.activeGroup?.expenses?.find(e => e.id === expenseId)
-        || group?.expenses?.find(e => e.id === expenseId)
+        || group?.expenses?.find((e: any) => e.id === expenseId)
 
       const { error } = await supabase
         .from('expenses')
@@ -880,7 +905,7 @@ const actions = {
 
       if (expense) {
         const description = expense.description
-        const amount = parseFloat(expense.amount || 0).toFixed(2)
+        const amount = parseFloat((expense.amount || 0) as string).toFixed(2)
 
         if (expense.is_pending) {
           // If it was a pending repayment, check if it was declined by the creditor
@@ -922,7 +947,7 @@ const actions = {
     }
   },
 
-  async confirmExpense(groupId, expenseId) {
+  async confirmExpense(groupId: string, expenseId: string) {
     state.loading = true
     state.error = null
     try {
@@ -944,7 +969,7 @@ const actions = {
           await this.sendPushNotification({
             recipientIds: [debtorId],
             type: 'settlement_confirmed',
-            params: { creditorName, amount: parseFloat(expense.amount).toFixed(2), groupName: state.activeGroup.name },
+            params: { creditorName, amount: parseFloat(expense.amount as string).toFixed(2), groupName: state.activeGroup.name },
             url: `/SplitPay/group/${groupId}`
           })
         }
@@ -971,7 +996,7 @@ const actions = {
     }
   },
 
-  async updateUserStatus(userId, status) {
+  async updateUserStatus(userId: string, status: string) {
     if (!state.isAdmin) return
     state.loading = true
     state.error = null
@@ -1004,7 +1029,7 @@ const actions = {
     }
   },
 
-  async deleteUser(userId) {
+  async deleteUser(userId: string) {
     if (!state.isAdmin) return
     state.loading = true
     state.error = null
@@ -1023,7 +1048,7 @@ const actions = {
     }
   },
 
-  async impersonateUser(profile) {
+  async impersonateUser(profile: Profile) {
     if (!profile) return
     state.loading = true
     state.error = null
@@ -1096,7 +1121,7 @@ const userGlobalStats = computed(() => {
   state.groups.forEach(group => {
     // If the group has members/expenses info, we can aggregate
     // Let's compute settlements for this group
-    const members = group.group_members?.map(gm => gm.profiles).filter(Boolean) || []
+    const members = group.group_members?.map((gm: any) => gm.profiles).filter(Boolean) || []
     const expenses = group.expenses || []
     const settlements = calculateSettlements(members, expenses)
     const myBalance = settlements.balances?.find(b => b.profileId === state.session?.user?.id)

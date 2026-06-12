@@ -14,7 +14,7 @@
   </button>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -45,7 +45,7 @@ const props = defineProps({
 
 const emit = defineEmits(['click'])
 
-const handleClick = (event) => {
+const handleClick = (event: MouseEvent) => {
   if (props.to) {
     router.push(props.to)
   } else {

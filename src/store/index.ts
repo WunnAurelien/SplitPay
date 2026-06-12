@@ -652,6 +652,30 @@ const actions = {
     }
   },
 
+  async deleteGroup(groupId: string) {
+    if (!state.session?.user) return
+    state.loading = true
+    state.error = null
+    try {
+      const { error } = await supabase
+        .from('groups')
+        .delete()
+        .eq('id', groupId)
+
+      if (error) throw error
+
+      if (state.activeGroup?.id === groupId) {
+        state.activeGroup = null
+      }
+      await this.fetchGroups()
+    } catch (e) {
+      this.setError(e)
+      throw e
+    } finally {
+      state.loading = false
+    }
+  },
+
   async addGroupMember(groupId: string, profileId: string) {
     state.loading = true
     state.error = null

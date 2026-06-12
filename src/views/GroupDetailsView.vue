@@ -191,6 +191,14 @@ const pendingRepayments = computed(() => {
   return state.activeGroup.expenses.filter(e => e.is_pending)
 })
 
+const canDissolveGroup = computed(() => {
+  const currentUserId = state.session?.user?.id
+  return (
+    state.isAdmin ||
+    state.activeGroup?.createdBy === currentUserId
+  )
+})
+
 const isConfirmingRepayment = ref<Record<string, boolean>>({})
 
 const handleConfirmRepayment = async (expenseId: string) => {
@@ -395,6 +403,28 @@ const handleRemoveMember = async (profileId: string) => {
     await actions.removeGroupMember(groupId, profileId)
     if (profileId === currentUserId) {
       router.push('/')
+    }
+  }
+}
+
+const handleDissolveGroup = async () => {
+  if (!state.activeGroup) return
+  const ok = await actions.confirm({
+    title: t('group.dissolveTitle') || 'Dissoudre le groupe',
+    message: t('group.confirmDissolve') || 'Êtes-vous sûr de vouloir dissoudre ce groupe ?',
+    confirmText: t('group.dissolveBtn') || 'Dissoudre',
+    cancelText: t('common.cancel') || 'Annuler'
+  })
+  if (ok) {
+    try {
+      await actions.deleteGroup(groupId)
+      router.push('/')
+    } catch (e) {
+      await actions.alert({
+        title: t('common.error'),
+        message: (e as any).message,
+        okText: 'OK'
+      })
     }
   }
 }
@@ -826,6 +856,24 @@ const handleBackdropClick = (dialog: HTMLDialogElement | null, event: MouseEvent
                   </button>
                 </div>
               </div>
+            </div>
+
+            <div v-if="canDissolveGroup" class="mt-6 pt-4 border-t border-base-300/20">
+              <BaseButton 
+                @click="handleDissolveGroup" 
+                variant="secondary" 
+                size="sm" 
+                class="w-full text-error border-error/20 hover:bg-error/10 hover:border-error/30"
+                style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.3);"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 inline mr-1.5 -mt-0.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                {{ $t('group.dissolveTitle') }}
+              </BaseButton>
             </div>
           </BaseCard>
         </div>

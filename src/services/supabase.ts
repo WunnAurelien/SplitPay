@@ -241,8 +241,32 @@ if (!useMock) {
 
     async delete() {
       const data = getTable(this.table);
+      const matches = data.filter((item: any) => this.filters.every((f: any) => f(item)));
       const remaining = data.filter((item: any) => !this.filters.every((f: any) => f(item)));
       saveTable(this.table, remaining);
+
+      // Cascade simulation for groups
+      if (this.table === 'groups' && matches.length > 0) {
+        const deletedGroupIds = matches.map((g: any) => g.id);
+
+        // Delete group_members
+        const members = getTable('group_members');
+        const remainingMembers = members.filter((m: any) => !deletedGroupIds.includes(m.group_id));
+        saveTable('group_members', remainingMembers);
+
+        // Find and delete expenses
+        const expenses = getTable('expenses');
+        const deletedExpenses = expenses.filter((e: any) => deletedGroupIds.includes(e.group_id));
+        const deletedExpenseIds = deletedExpenses.map((e: any) => e.id);
+        const remainingExpenses = expenses.filter((e: any) => !deletedGroupIds.includes(e.group_id));
+        saveTable('expenses', remainingExpenses);
+
+        // Delete expense_beneficiaries
+        const beneficiaries = getTable('expense_beneficiaries');
+        const remainingBeneficiaries = beneficiaries.filter((b: any) => !deletedExpenseIds.includes(b.expense_id));
+        saveTable('expense_beneficiaries', remainingBeneficiaries);
+      }
+
       return { data: null, error: null };
     }
   }

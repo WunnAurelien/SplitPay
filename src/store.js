@@ -1,6 +1,7 @@
 import { reactive, computed } from 'vue'
 import { useSupabase } from './supabase'
 import { setupGlobalChannels, setupGroupChannel, teardownAll, teardownGroupChannel } from './realtime'
+import i18n from './i18n'
 
 const { supabase, useMock } = useSupabase()
 
@@ -173,6 +174,30 @@ const actions = {
     state.error = err ? (err.message || err) : null
   },
 
+  async sendPushNotification({ recipientIds, type, params, url }) {
+    if (!recipientIds || recipientIds.length === 0) return
+    
+    if (useMock) {
+      console.log(`[Mock Push Notification] To: ${JSON.stringify(recipientIds)}, Type: "${type}", Params: ${JSON.stringify(params)}, URL: "${url}"`)
+      return
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('send-push', {
+        body: {
+          recipientIds,
+          type,
+          params,
+          url
+        }
+      })
+      if (error) throw error
+      return data
+    } catch (err) {
+      console.error('[SplitPay] Error sending push notification:', err)
+    }
+  },
+
   confirm({ title, message, confirmText, cancelText }) {
     state.confirmState.title = title || ''
     state.confirmState.message = message || ''
@@ -333,7 +358,8 @@ const actions = {
             id: userId,
             email: state.session.user.email,
             username: state.session.user.email.split('@')[0],
-            status: 'pending'
+            status: 'pending',
+            locale: localStorage.getItem('splitpay_locale') || 'fr'
           })
           .select()
         
@@ -457,6 +483,22 @@ const actions = {
       throw e
     } finally {
       state.loading = false
+    }
+  },
+
+  async updateLocale(locale) {
+    if (!state.session?.user) return
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ locale })
+        .eq('id', state.session.user.id)
+      if (error) throw error
+      if (state.profile) {
+        state.profile.locale = locale
+      }
+    } catch (e) {
+      console.error('[SplitPay] Failed to update locale in DB:', e)
     }
   },
 
@@ -600,6 +642,55 @@ const actions = {
       
       if (error) throw error
       await this.fetchGroupDetails(groupId)
+
+      // Send notification to the added user
+      if (state.activeGroup && profileId !== state.session?.user?.id) {
+        const addedBy = state.profile?.username || state.profile?.email || i18n.global.t('admin.noHandle')
+        await this.sendPushNotification({
+          recipientIds: [profileId],
+          type: 'added_to_group',
+          params: { addedBy, groupName: state.activeGroup.name },
+          url: `/SplitPay/group/${groupId}`
+        })
+      }
+    } catch (e) {
+      this.setError(e)
+      throw e
+    } finally {
+      state.loading = false
+    }
+  },
+
+  async joinGroup(groupId) {
+    if (!state.session?.user) return
+    state.loading = true
+    state.error = null
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .insert({ group_id: groupId, profile_id: state.session.user.id })
+      
+      if (error) throw error
+      
+      await this.fetchGroups()
+      
+      // Notify other group members that a new user has joined
+      const group = state.groups.find(g => g.id === groupId)
+      if (group) {
+        const otherMemberIds = group.group_members
+          ?.map(gm => gm.profile_id)
+          .filter(id => id !== state.session.user.id) || []
+        
+        if (otherMemberIds.length > 0) {
+          const joinerName = state.profile?.username || state.profile?.email || i18n.global.t('admin.noHandle')
+          await this.sendPushNotification({
+            recipientIds: otherMemberIds,
+            type: 'new_member',
+            params: { joinerName, groupName: group.name },
+            url: `/SplitPay/group/${groupId}`
+          })
+        }
+      }
     } catch (e) {
       this.setError(e)
       throw e
@@ -695,6 +786,40 @@ const actions = {
 
       // Refresh group details
       await this.fetchGroupDetails(groupId)
+
+      // Send push notifications
+      if (state.activeGroup) {
+        const groupName = state.activeGroup.name
+        const payerProfile = state.activeGroup.members?.find(m => m.id === paidBy) || state.profile
+        const payerName = payerProfile?.username || payerProfile?.email || i18n.global.t('admin.noHandle')
+
+        if (isPending) {
+          // Settlement repayment
+          const creditorId = splits[0]?.profileId
+          if (creditorId && creditorId !== paidBy) {
+            await this.sendPushNotification({
+              recipientIds: [creditorId],
+              type: 'settlement',
+              params: { payerName, amount: parseFloat(amount).toFixed(2), groupName },
+              url: `/SplitPay/group/${groupId}`
+            })
+          }
+        } else {
+          // Standard expense
+          const otherMemberIds = state.activeGroup.members
+            ?.map(m => m.id)
+            .filter(id => id !== paidBy) || []
+
+          if (otherMemberIds.length > 0) {
+            await this.sendPushNotification({
+              recipientIds: otherMemberIds,
+              type: 'new_expense',
+              params: { payerName, description, amount: parseFloat(amount).toFixed(2), groupName },
+              url: `/SplitPay/group/${groupId}`
+            })
+          }
+        }
+      }
     } catch (e) {
       this.setError(e)
       throw e
@@ -726,6 +851,8 @@ const actions = {
     state.loading = true
     state.error = null
     try {
+      const expense = state.activeGroup?.expenses?.find(e => e.id === expenseId)
+
       const { error } = await supabase
         .from('expenses')
         .update({ is_pending: false })
@@ -733,6 +860,20 @@ const actions = {
 
       if (error) throw error
       await this.fetchGroupDetails(groupId)
+
+      // Send notification to the debtor
+      if (expense && state.activeGroup) {
+        const creditorName = state.profile?.username || state.profile?.email || i18n.global.t('admin.noHandle')
+        const debtorId = expense.paid_by
+        if (debtorId && debtorId !== state.session?.user?.id) {
+          await this.sendPushNotification({
+            recipientIds: [debtorId],
+            type: 'settlement_confirmed',
+            params: { creditorName, amount: parseFloat(expense.amount).toFixed(2), groupName: state.activeGroup.name },
+            url: `/SplitPay/group/${groupId}`
+          })
+        }
+      }
     } catch (e) {
       this.setError(e)
       throw e
@@ -770,6 +911,15 @@ const actions = {
       const idx = state.profiles.findIndex(p => p.id === userId)
       if (idx !== -1) {
         state.profiles[idx].status = status
+      }
+
+      if (status === 'approved') {
+        await this.sendPushNotification({
+          recipientIds: [userId],
+          type: 'account_approved',
+          params: {},
+          url: '/SplitPay/'
+        })
       }
     } catch (e) {
       this.setError(e)

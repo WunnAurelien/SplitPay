@@ -114,7 +114,7 @@ const handleConfirmRepayment = async (expenseId) => {
     await actions.confirmExpense(groupId, expenseId)
   } catch (e) {
     await actions.alert({
-      title: locale.value === 'fr' ? 'Erreur' : 'Error',
+      title: t('common.error'),
       message: e.message,
       okText: 'OK'
     })
@@ -325,7 +325,7 @@ const handleDeleteExpense = async (expenseId, description) => {
       await actions.deleteExpense(groupId, expenseId)
     } catch (e) {
       await actions.alert({
-        title: locale.value === 'fr' ? 'Erreur' : 'Error',
+        title: t('common.error'),
         message: e.message,
         okText: 'OK'
       })
@@ -335,12 +335,10 @@ const handleDeleteExpense = async (expenseId, description) => {
 
 const handleRejectRepayment = async (expenseId, description) => {
   const ok = await actions.confirm({
-    title: locale.value === 'fr' ? 'Refuser le remboursement' : 'Decline Repayment',
-    message: locale.value === 'fr' 
-      ? `Êtes-vous sûr de vouloir refuser ce remboursement de ${description} ?` 
-      : `Are you sure you want to decline this repayment of ${description}?`,
-    confirmText: locale.value === 'fr' ? 'Refuser' : 'Decline',
-    cancelText: t('common.cancel') || 'Annuler'
+    title: t('group.declineRepaymentTitle'),
+    message: t('group.declineRepaymentConfirm', { description }),
+    confirmText: t('group.declineRepaymentBtn'),
+    cancelText: t('common.cancel')
   })
   if (ok) {
     isConfirmingRepayment.value[expenseId] = true
@@ -348,7 +346,7 @@ const handleRejectRepayment = async (expenseId, description) => {
       await actions.deleteExpense(groupId, expenseId)
     } catch (e) {
       await actions.alert({
-        title: locale.value === 'fr' ? 'Erreur' : 'Error',
+        title: t('common.error'),
         message: e.message,
         okText: 'OK'
       })
@@ -364,8 +362,8 @@ const handleRequestRepayment = async (transaction, idx) => {
   const debtor = state.activeGroup?.members?.find(m => m.id === transaction.fromId)
   if (!debtor) {
     await actions.alert({
-      title: locale.value === 'fr' ? 'Erreur' : 'Error',
-      message: locale.value === 'fr' ? 'Débiteur introuvable dans le groupe.' : 'Debtor not found in group.',
+      title: t('common.error'),
+      message: t('group.debtorNotFound'),
       okText: 'OK'
     })
     return
@@ -373,50 +371,51 @@ const handleRequestRepayment = async (transaction, idx) => {
 
   if (!debtor.push_subscription) {
     await actions.alert({
-      title: locale.value === 'fr' ? 'Notifications désactivées' : 'Notifications Disabled',
+      title: t('settings.notificationsDisabled'),
       message: t('group.requestRepaymentNoPush'),
       okText: 'OK'
     })
     return
   }
 
-  const confirmMsg = locale.value === 'fr'
-    ? `Voulez-vous envoyer une demande de remboursement de ${formatEuro(transaction.amount)} à ${debtor.username || debtor.email} ?`
-    : `Do you want to send a repayment request of ${formatEuro(transaction.amount)} to ${debtor.username || debtor.email}?`
+  const confirmMsg = t('group.requestRepaymentConfirm', { amount: formatEuro(transaction.amount), name: debtor.username || debtor.email })
   
   const ok = await actions.confirm({
-    title: t('group.request') || (locale.value === 'fr' ? 'Demander' : 'Request'),
+    title: t('group.request'),
     message: confirmMsg,
-    confirmText: t('common.confirm') || 'Confirmer',
-    cancelText: t('common.cancel') || 'Annuler'
+    confirmText: t('common.confirm'),
+    cancelText: t('common.cancel')
   })
 
   if (!ok) return
 
   isRequestingRepayment.value[idx] = true
   try {
-    const senderName = state.profile?.username || state.profile?.email || 'Un membre'
+    const senderName = state.profile?.username || state.profile?.email || t('admin.noHandle')
     const { data, error } = await supabase.functions.invoke('send-push', {
       body: {
-        recipientId: transaction.fromId,
-        amount: transaction.amount,
-        groupName: state.activeGroup?.name || 'Groupe',
-        groupId: groupId,
-        senderName: senderName
+        recipientIds: [transaction.fromId],
+        type: 'request_repayment',
+        params: {
+          senderName: senderName,
+          amount: transaction.amount,
+          groupName: state.activeGroup?.name || 'Groupe'
+        },
+        url: `/SplitPay/group/${groupId}`
       }
     })
 
     if (error) throw error
 
     await actions.alert({
-      title: locale.value === 'fr' ? 'Succès' : 'Success',
+      title: t('common.success'),
       message: t('group.requestRepaymentSuccess', { amount: formatEuro(transaction.amount), name: debtor.username || debtor.email }),
       okText: 'OK'
     })
   } catch (err) {
     console.error('Error sending request notification:', err)
     await actions.alert({
-      title: locale.value === 'fr' ? 'Erreur' : 'Error',
+      title: t('common.error'),
       message: t('group.requestRepaymentFailed') + ` (${err.message})`,
       okText: 'OK'
     })
@@ -481,7 +480,7 @@ const confirmSettleUpPayment = async () => {
     } else if (selectedPaymentMethod.value === 'link') {
       methodDetail = ` (${t('group.payLink') || 'Lien'})`
     } else {
-      methodDetail = ` (${locale.value === 'fr' ? 'Espèces / Autre' : 'Cash / Other'})`
+      methodDetail = ` (${t('group.cashOrOther')})`
     }
 
     // Settle is represented as a payment expense where 'from' paid the amount
@@ -497,7 +496,7 @@ const confirmSettleUpPayment = async () => {
     closeSettleUpModal()
   } catch (e) {
     await actions.alert({
-      title: t('group.settleUpFailedTitle') || (locale.value === 'fr' ? 'Échec du remboursement' : 'Repayment Failed'),
+      title: t('group.settleUpFailedTitle'),
       message: e.message,
       okText: 'OK'
     })

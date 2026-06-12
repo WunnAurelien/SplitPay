@@ -21,6 +21,7 @@ create table if not exists public.profiles (
     iban text,
     status text default 'pending'::text not null check (status in ('pending', 'approved', 'rejected')),
     push_subscription jsonb,
+    locale text default 'fr'::text not null check (locale in ('fr', 'en')),
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -85,13 +86,14 @@ alter table public.expense_beneficiaries enable row level security;
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-    insert into public.profiles (id, email, username, payment_link, status)
+    insert into public.profiles (id, email, username, payment_link, status, locale)
     values (
         new.id,
         new.email,
         coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
         new.raw_user_meta_data->>'payment_link',
-        'pending'
+        'pending',
+        coalesce(new.raw_user_meta_data->>'locale', 'fr')
     );
     return new;
 end;

@@ -12,7 +12,9 @@
     "errorResolution": "Please check your .env settings and API key variables.",
     "pullToRefresh": "Pull to refresh",
     "releaseToRefresh": "Release to refresh",
-    "refreshing": "Refreshing..."
+    "refreshing": "Refreshing...",
+    "error": "Error",
+    "success": "Success"
   },
   "app": {
     "dashboard": "Dashboard",
@@ -259,6 +261,27 @@
     "request": "Request",
     "requestRepaymentSuccess": "Repayment request of {amount} sent to {name}!",
     "requestRepaymentNoPush": "This user has not enabled push notifications.",
-    "requestRepaymentFailed": "Failed to send notification. Please try again."
+    "requestRepaymentFailed": "Failed to send notification. Please try again.",
+    "declineRepaymentTitle": "Decline Repayment",
+    "declineRepaymentConfirm": "Are you sure you want to decline this repayment of {description}?",
+    "declineRepaymentBtn": "Decline",
+    "debtorNotFound": "Debtor not found in group.",
+    "requestRepaymentConfirm": "Do you want to send a repayment request of {amount} to {name}?",
+    "cashOrOther": "Cash / Other",
+    "settleUpFailedTitle": "Repayment Failed"
+  },
+  "notifications": {
+    "newExpenseTitle": "New Expense",
+    "newExpenseBody": "{payerName} added the expense \"{description}\" of €{amount} in the group \"{groupName}\".",
+    "settlementTitle": "Settlement to Confirm",
+    "settlementBody": "{payerName} indicated they repaid you €{amount} in the group \"{groupName}\". Please confirm the repayment.",
+    "settlementConfirmedTitle": "Settlement Confirmed",
+    "settlementConfirmedBody": "{creditorName} confirmed your repayment of €{amount} in the group \"{groupName}\".",
+    "addedToGroupTitle": "Added to Group",
+    "addedToGroupBody": "{addedBy} added you to the group \"{groupName}\".",
+    "newMemberTitle": "New Member",
+    "newMemberBody": "{joinerName} joined the group \"{groupName}\".",
+    "accountApprovedTitle": "Account Approved",
+    "accountApprovedBody": "Your SplitPay account has been approved. You can now create and join groups!"
   }
 }

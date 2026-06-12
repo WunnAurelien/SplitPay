@@ -272,6 +272,7 @@ if (!useMock) {
           phone_number: options.data?.phone_number || '',
           iban: options.data?.iban || '',
           status: 'pending', // Starts as pending, will trigger admin setup on profiles insert
+          locale: options.data?.locale || localStorage.getItem('splitpay_locale') || 'fr',
           created_at: new Date().toISOString()
         };
         
@@ -514,6 +515,13 @@ if (!useMock) {
 
     from(table) {
       return new MockQueryBuilder(table);
+    },
+    functions: {
+      async invoke(funcName, { body } = {}) {
+        console.log(`[Mock Push] Invoked function '${funcName}' with body:`, body);
+        await new Promise(resolve => setTimeout(resolve, 600));
+        return { data: { success: true }, error: null };
+      }
     }
   };
 }

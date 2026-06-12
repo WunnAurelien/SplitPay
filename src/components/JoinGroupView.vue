@@ -74,18 +74,7 @@ const handleJoin = async () => {
       return
     }
 
-    // Insert membership row for current user (allowed by our updated insert policy)
-    const { error } = await supabase
-      .from('group_members')
-      .insert({
-        group_id: groupId,
-        profile_id: state.session.user.id
-      })
-
-    if (error) throw error
-
-    // Fetch groups in store to update the sidebar list & stats
-    await actions.fetchGroups()
+    await actions.joinGroup(groupId)
 
     // Redirect to group details
     router.push(`/group/${groupId}`)

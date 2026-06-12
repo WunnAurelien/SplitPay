@@ -12,7 +12,9 @@
     "errorResolution": "Veuillez vérifier vos paramètres .env et vos variables de clé API.",
     "pullToRefresh": "Tirez pour rafraîchir",
     "releaseToRefresh": "Relâchez pour rafraîchir",
-    "refreshing": "Chargement..."
+    "refreshing": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès"
   },
   "app": {
     "dashboard": "Tableau de bord",
@@ -259,6 +261,27 @@
     "request": "Demander",
     "requestRepaymentSuccess": "Demande de remboursement de {amount} envoyée à {name} !",
     "requestRepaymentNoPush": "Cet utilisateur n'a pas activé les notifications push.",
-    "requestRepaymentFailed": "Échec de l'envoi de la notification. Veuillez réessayer."
+    "requestRepaymentFailed": "Échec de l'envoi de la notification. Veuillez réessayer.",
+    "declineRepaymentTitle": "Refuser le remboursement",
+    "declineRepaymentConfirm": "Êtes-vous sûr de vouloir refuser ce remboursement de {description} ?",
+    "declineRepaymentBtn": "Refuser",
+    "debtorNotFound": "Débiteur introuvable dans le groupe.",
+    "requestRepaymentConfirm": "Voulez-vous envoyer une demande de remboursement de {amount} à {name} ?",
+    "cashOrOther": "Espèces / Autre",
+    "settleUpFailedTitle": "Échec du remboursement"
+  },
+  "notifications": {
+    "newExpenseTitle": "Nouvelle dépense",
+    "newExpenseBody": "{payerName} a ajouté la dépense \"{description}\" de {amount} € dans le groupe \"{groupName}\".",
+    "settlementTitle": "Remboursement à valider",
+    "settlementBody": "{payerName} indique vous avoir remboursé {amount} € dans le groupe \"{groupName}\". Veuillez valider le remboursement.",
+    "settlementConfirmedTitle": "Remboursement validé",
+    "settlementConfirmedBody": "{creditorName} a validé votre remboursement de {amount} € dans le groupe \"{groupName}\".",
+    "addedToGroupTitle": "Ajouté à un groupe",
+    "addedToGroupBody": "{addedBy} vous a ajouté au groupe \"{groupName}\".",
+    "newMemberTitle": "Nouveau membre",
+    "newMemberBody": "{joinerName} a rejoint le groupe \"{groupName}\".",
+    "accountApprovedTitle": "Compte approuvé",
+    "accountApprovedBody": "Votre compte SplitPay a été approuvé. Vous pouvez désormais créer et rejoindre des groupes !"
   }
 }

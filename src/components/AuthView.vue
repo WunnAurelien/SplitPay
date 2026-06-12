@@ -100,7 +100,8 @@ const handleAuth = async () => {
         options: {
           data: {
             username: username.value,
-            payment_link: paymentLink.value
+            payment_link: paymentLink.value,
+            locale: locale.value
           }
         }
       })

@@ -81,6 +81,13 @@ watch(locale, (newLocale) => {
   document.documentElement.setAttribute('lang', newLocale)
 }, { immediate: true })
 
+watch(() => state.profile?.locale, (newLocale) => {
+  if (newLocale && (newLocale === 'fr' || newLocale === 'en')) {
+    locale.value = newLocale
+    localStorage.setItem('splitpay_locale', newLocale)
+  }
+})
+
 watch(isApproved, async (newVal) => {
   if (newVal) {
     const pendingJoinGroupId = localStorage.getItem('splitpay_pending_join_group_id')
@@ -92,23 +99,9 @@ watch(isApproved, async (newVal) => {
       localStorage.removeItem('splitpay_redirect_after_auth')
       
       try {
-        const { error } = await supabase
-          .from('group_members')
-          .insert({
-            group_id: pendingJoinGroupId,
-            profile_id: state.session.user.id
-          })
-          
-        if (error) throw error
+        await actions.joinGroup(pendingJoinGroupId)
         
-        await actions.fetchGroups()
-        
-        const { data: group } = await supabase
-          .from('groups')
-          .select('name')
-          .eq('id', pendingJoinGroupId)
-          .single()
-          
+        const group = state.groups.find(g => g.id === pendingJoinGroupId)
         const groupName = group?.name || ''
         
         await actions.alert({
@@ -171,8 +164,15 @@ const handleLogout = async () => {
   }
 }
 
-const saveLocale = () => {
+const saveLocale = async () => {
   localStorage.setItem('splitpay_locale', locale.value)
+  if (state.session?.user?.id) {
+    try {
+      await actions.updateLocale(locale.value)
+    } catch (err) {
+      console.error('Failed to update locale in DB:', err)
+    }
+  }
 }
 
 const getStatusLabel = (status) => {
